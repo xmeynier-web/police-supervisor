@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<!-- 
+    Application : Police Supervisor (Console CSU)
+    Conception & Architecture : Xavier Meynier-Laloi
+-->
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Police Supervisor - Command Center</title>
+    <!-- Leaflet CSS pour la cartographie -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; background-color: #121212; color: #ffffff; display: flex; height: 100vh; overflow: hidden; }
+        #sidebar { width: 380px; background-color: #1a1a1a; padding: 24px; box-sizing: border-box; overflow-y: auto; border-right: 1px solid #333333; display: flex; flex-direction: column; }
+        #sidebar h2 { color: #00bcd4; margin-top: 0; margin-bottom: 4px; font-size: 20px; }
+        #sidebar p { color: #888888; font-size: 13px; margin-top: 0; }
+        #map { flex-grow: 1; height: 100%; }
+        .unit-card { background-color: #242424; padding: 14px; margin-bottom: 12px; border-radius: 8px; border-left: 4px solid #00bcd4; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .unit-card.status-sos { border-left-color: #f44336; background-color: #2c1a1a; }
+        .unit-card strong { font-size: 15px; color: #ffffff; }
+        .unit-card small { color: #aaaaaa; display: block; margin-top: 6px; }
+        .footer-sig { margin-top: auto; font-size: 11px; color: #666666; border-top: 1px solid #333333; padding-top: 16px; text-align: center; }
+    </style>
+</head>
+<body>
+
+    <div id="sidebar">
+        <h2>Police Supervisor</h2>
+        <p>Centre de Supervision Opérationnel</p>
+        <hr style="border-color: #333; margin: 15px 0;">
+        <div id="units-list">
+            <!-- Les unités connectées s'afficheront dynamiquement ici -->
+        </div>
+        <div class="footer-sig">
+            Conçu et administré par <strong>Xavier Meynier-Laloi</strong>
+        </div>
+    </div>
+
+    <div id="map"></div>
+
+    <!-- Firebase & Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // Configuration Firebase officielle
+        const firebaseConfig = {
+            apiKey: "AIzaSyCua2pik8r_B9bo8s-OqFQunFVPPwHbmCg",
+            authDomain: "operator-supervisor-ops.firebaseapp.com",
+            projectId: "operator-supervisor-ops",
+            storageBucket: "operator-supervisor-ops.firebasestorage.app",
+            messagingSenderId: "390289085067",
+            appId: "1:390289085067:web:f6128eec4af06fb4143a8e"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Initialisation de la carte Leaflet
+        const map = L.map('map').setView([48.7500, 2.3000], 13);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors - Police Supervisor (Xavier Meynier-Laloi)'
+        }).addTo(map);
+
+        const markers = {};
+        const unitsListEl = document.getElementById('units-list');
+
+        // Écoute en temps réel de la collection Firestore "units"
+        onSnapshot(collection(db, "units"), (snapshot) => {
+            unitsListEl.innerHTML = '';
+            snapshot.forEach((docSnap) => {
+                const data = docSnap.data();
+                const unitId = docSnap.id;
+
+                const card = document.createElement('div');
+                card.className = `unit-card ${data.status === 'SOS' ? 'status-sos' : ''}`;
+                card.innerHTML = `<strong>Unité : ${unitId}</strong><br>Statut: ${data.status || 'Actif'}<br><small>Lat: ${data.latitude}, Lng: ${data.longitude}</small>`;
+                unitsListEl.appendChild(card);
+
+                if (data.latitude && data.longitude) {
+                    if (markers[unitId]) {
+                        markers[unitId].setLatLng([data.latitude, data.longitude]);
+                    } else {
+                        markers[unitId] = L.marker([data.latitude, data.longitude]).addTo(map)
+                            .bindPopup(`<b>Unité : ${unitId}</b><br>Statut: ${data.status}`);
+                    }
+                }
+            });
+        });
+    </script>
+</body>
+</html>
