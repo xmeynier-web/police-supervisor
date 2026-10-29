@@ -1,225 +1,61 @@
 <!DOCTYPE html>
 <!-- 
-    Application : Police Supervisor - Centre de Supervision Opérationnel (CSU)
+    Application : Police Supervisor - Poste de Commandement (CSU Fresnes)
     Conception & Architecture : Xavier Meynier-Laloi
 -->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <title>Police Supervisor - Command Center</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Poste de Commandement - Police Municipale</title>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
         :root {
-            --bg-dark: #0f172a;
-            --bg-panel: #1e293b;
-            --border-color: #334155;
-            --accent-cyan: #06b6d4;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --danger: #ef4444;
-            --warning: #f59e0b;
-            --success: #10b981;
-        }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; background-color: var(--bg-dark); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; }
-        
-        #sidebar { width: 420px; background-color: var(--bg-panel); display: flex; flex-direction: column; border-right: 1px solid var(--border-color); box-shadow: 4px 0 15px rgba(0,0,0,0.3); z-index: 1000; }
-        .header-panel { padding: 20px; border-bottom: 1px solid var(--border-color); background: linear-gradient(135deg, #1e293b, #0f172a); }
-        .header-panel h2 { margin: 0; color: var(--accent-cyan); font-size: 20px; display: flex; align-items: center; gap: 10px; }
-        .header-panel p { margin: 4px 0 0 0; color: var(--text-muted); font-size: 13px; }
-
-        .tabs { display: flex; background: #0f172a; border-bottom: 1px solid var(--border-color); }
-        .tab-btn { flex: 1; padding: 12px; background: none; border: none; color: var(--text-muted); font-weight: bold; cursor: pointer; transition: all 0.2s; font-size: 12px; }
-        .tab-btn.active { color: var(--accent-cyan); border-bottom: 2px solid var(--accent-cyan); background: var(--bg-panel); }
-
-        .tab-content { flex: 1; overflow-y: auto; padding: 20px; display: none; }
-        .tab-content.active { display: block; }
-
-        .card { background-color: rgba(15, 23, 42, 0.6); border: 1px solid var(--border-color); padding: 14px; border-radius: 8px; margin-bottom: 12px; position: relative; }
-        .card.status-sos { border-color: var(--danger); background-color: rgba(239, 68, 68, 0.15); animation: pulse 1.5s infinite; }
-        .card.status-intervention { border-color: var(--warning); }
-        
-        @keyframes pulse {
-            0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
-            70% { box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+            --bg-main: #121319;
+            --bg-panel: #1a1c24;
+            --bg-card: #232631;
+            --bg-input: #12141a;
+            --border-color: #2e3240;
+            --text-main: #ffffff;
+            --text-muted: #8e95a5;
+            --orange-btn: #ff7a00;
+            --orange-btn-hover: #e66e00;
+            --blue-btn: #007bff;
+            --blue-btn-hover: #0056b3;
+            --green-card: #10b981;
+            --blue-card: #0284c7;
+            --red-card: #ef4444;
         }
 
-        .unit-title { font-size: 15px; font-weight: bold; display: flex; justify-content: space-between; align-items: center; }
-        .badge { font-size: 10px; padding: 3px 8px; border-radius: 12px; text-transform: uppercase; font-weight: bold; }
-        .badge-dispo { background: var(--success); color: #000; }
-        .badge-inter { background: var(--warning); color: #000; }
-        .badge-sos { background: var(--danger); color: #fff; }
+        * { box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; background-color: var(--bg-main); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; }
 
-        .details-grid { margin-top: 8px; font-size: 12px; color: var(--text-muted); display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
-        .equipment-list { margin-top: 8px; font-size: 11px; background: rgba(0,0,0,0.2); padding: 6px; border-radius: 4px; color: var(--text-muted); }
+        /* --- COLONNE GAUCHE : DISPATCH & UNITES --- */
+        #left-panel { width: 320px; background-color: var(--bg-panel); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 16px; overflow-y: auto; flex-shrink: 0; }
+        
+        .header-logo { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; }
+        .header-logo img { width: 38px; height: auto; }
+        .header-logo h1 { font-size: 16px; font-weight: 800; text-transform: uppercase; margin: 0; letter-spacing: 0.5px; line-height: 1.2; }
 
-        input, select, textarea { width: 100%; padding: 10px; margin-top: 6px; margin-bottom: 12px; background: #0f172a; border: 1px solid var(--border-color); color: white; border-radius: 6px; box-sizing: border-box; font-size: 13px; }
-        button.action-btn { background: var(--accent-cyan); color: #0f172a; border: none; padding: 10px 16px; font-weight: bold; border-radius: 6px; cursor: pointer; width: 100%; transition: opacity 0.2s; }
-        button.action-btn:hover { opacity: 0.9; }
+        .dispatch-box { background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 14px; margin-bottom: 20px; }
+        .dispatch-box h3 { margin: 0 0 12px 0; font-size: 13px; font-weight: 700; color: #f3f4f6; display: flex; align-items: center; gap: 6px; }
+        
+        input, select { width: 100%; padding: 9px 12px; margin-bottom: 10px; background-color: var(--bg-input); border: 1px solid var(--border-color); color: #ffffff; border-radius: 6px; font-size: 12px; }
+        input::placeholder { color: var(--text-muted); }
+        input:focus, select:focus { outline: none; border-color: var(--orange-btn); }
 
-        .log-entry { font-size: 12px; border-left: 3px solid var(--accent-cyan); padding-left: 10px; margin-bottom: 10px; background: rgba(0,0,0,0.1); padding-top: 4px; padding-bottom: 4px; }
-        .log-time { color: var(--text-muted); font-size: 10px; }
+        button.btn-orange { width: 100%; background-color: var(--orange-btn); color: #ffffff; border: none; padding: 10px; font-weight: 700; font-size: 12px; border-radius: 6px; cursor: pointer; transition: background 0.2s; }
+        button.btn-orange:hover { background-color: var(--orange-btn-hover); }
 
-        #map { flex-grow: 1; height: 100%; }
-        .footer-sig { padding: 15px; font-size: 11px; color: var(--text-muted); border-top: 1px solid var(--border-color); text-align: center; background: #0f172a; }
-    </style>
-</head>
-<body>
+        .section-title { font-size: 16px; font-weight: 800; margin-bottom: 12px; color: #ffffff; }
+        .units-list { display: flex; flex-direction: column; gap: 8px; }
+        .unit-card { background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+        .unit-card .status-dot { width: 8px; height: 8px; border-radius: 50%; background-color: var(--green-card); display: inline-block; margin-right: 6px; }
 
-    <div id="sidebar">
-        <div class="header-panel">
-            <h2>🛡️ Police Supervisor</h2>
-            <p>Centre de Supervision Opérationnel</p>
-        </div>
+        /* --- COLONNE CENTRALE : CARTE --- */
+        #map-container { flex-grow: 1; height: 100%; position: relative; }
+        #map { width: 100%; height: 100%; }
 
-        <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('units')">Unités & GPS</button>
-            <button class="tab-btn" onclick="switchTab('missions')">Dispatch</button>
-            <button class="tab-btn" onclick="switchTab('logbook')">Main Courante</button>
-        </div>
-
-        <div id="tab-units" class="tab-content active">
-            <h3 style="margin-top:0; font-size:13px; color:var(--text-muted);">EFFECTIFS ENGAGÉS</h3>
-            <div id="units-container"></div>
-        </div>
-
-        <div id="tab-missions" class="tab-content">
-            <h3 style="margin-top:0; font-size:13px; color:var(--text-muted);">ENVOI DE MISSION</h3>
-            <label>Unité destinataire :</label>
-            <select id="mission-unit">
-                <option value="Unite_01">Unité 01</option>
-                <option value="Unite_02">Unité 02</option>
-            </select>
-            <label>Intitulé de l'ordre :</label>
-            <input type="text" id="mission-title" placeholder="Ex: Contrôle site, Levée de doute...">
-            <label>Priorité :</label>
-            <select id="mission-priority">
-                <option value="Normale">Normale</option>
-                <option value="Urgente">Urgente / Immédiate</option>
-            </select>
-            <button class="action-btn" onclick="sendMission()">Transmettre l'ordre</button>
-        </div>
-
-        <div id="tab-logbook" class="tab-content">
-            <h3 style="margin-top:0; font-size:13px; color:var(--text-muted);">JOURNAL DES ÉVÉNEMENTS</h3>
-            <textarea id="log-text" rows="3" placeholder="Saisir une main courante..."></textarea>
-            <button class="action-btn" onclick="addLogEntry()">Enregistrer</button>
-            <hr style="border-color:var(--border-color); margin: 15px 0;">
-            <div id="logbook-container"></div>
-        </div>
-
-        <div class="footer-sig">
-            Direction de la Police Municipale • Conçu par <strong>Xavier Meynier-Laloi</strong>
-        </div>
-    </div>
-
-    <div id="map"></div>
-
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyCua2pik8r_B9bo8s-OqFQunFVPPwHbmCg",
-            authDomain: "operator-supervisor-ops.firebaseapp.com",
-            projectId: "operator-supervisor-ops",
-            storageBucket: "operator-supervisor-ops.firebasestorage.app",
-            messagingSenderId: "390289085067",
-            appId: "1:390289085067:web:f6128eec4af06fb4143a8e"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-
-        const map = L.map('map').setView([48.7500, 2.3000], 14);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '© OpenStreetMap contributors - Police Supervisor CSU'
-        }).addTo(map);
-
-        const markers = {};
-        const unitsContainer = document.getElementById('units-container');
-
-        onSnapshot(collection(db, "units"), (snapshot) => {
-            unitsContainer.innerHTML = '';
-            snapshot.forEach((docSnap) => {
-                const data = docSnap.data();
-                const unitId = docSnap.id;
-
-                let badgeClass = 'badge-dispo';
-                let cardClass = '';
-                if (data.status === 'En intervention') { badgeClass = 'badge-inter'; cardClass = 'status-intervention'; }
-                if (data.status === 'SOS') { badgeClass = 'badge-sos'; cardClass = 'status-sos'; }
-
-                const card = document.createElement('div');
-                card.className = `card ${cardClass}`;
-                card.innerHTML = `
-                    <div class="unit-title">
-                        <span>🚓 ${unitId}</span>
-                        <span class="badge ${badgeClass}">${data.status || 'Actif'}</span>
-                    </div>
-                    <div class="details-grid">
-                        <div>Lat: ${data.latitude ? data.latitude.toFixed(4) : 'N/A'}</div>
-                        <div>Lng: ${data.longitude ? data.longitude.toFixed(4) : 'N/A'}</div>
-                    </div>
-                    <div class="equipment-list">
-                        <strong>Matériel :</strong> ${data.equipment || 'Armement, Radio, PIE, Caméra piéton'}
-                    </div>
-                `;
-                unitsContainer.appendChild(card);
-
-                if (data.latitude && data.longitude) {
-                    if (markers[unitId]) {
-                        markers[unitId].setLatLng([data.latitude, data.longitude]);
-                        markers[unitId].getPopup().setContent(`<b>${unitId}</b><br>Statut: ${data.status}`);
-                    } else {
-                        markers[unitId] = L.marker([data.latitude, data.longitude]).addTo(map)
-                            .bindPopup(`<b>${unitId}</b><br>Statut: ${data.status}`);
-                    }
-                }
-            });
-        });
-
-        window.switchTab = function(tabName) {
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
-            document.getElementById(`tab-${tabName}`).classList.add('active');
-            event.currentTarget.classList.add('active');
-        };
-
-        window.sendMission = async function() {
-            const unit = document.getElementById('mission-unit').value;
-            const title = document.getElementById('mission-title').value;
-            const priority = document.getElementById('mission-priority').value;
-            if (!title) return alert("Saisir un intitulé.");
-            await addDoc(collection(db, "missions"), { unitId: unit, title, priority, timestamp: serverTimestamp(), status: "Transmise" });
-            alert("Mission transmise.");
-            document.getElementById('mission-title').value = '';
-        };
-
-        window.addLogEntry = async function() {
-            const text = document.getElementById('log-text').value;
-            if (!text) return;
-            await addDoc(collection(db, "logbook"), { content: text, author: "Opérateur CSU", timestamp: serverTimestamp() });
-            document.getElementById('log-text').value = '';
-        };
-
-        const logbookContainer = document.getElementById('logbook-container');
-        onSnapshot(collection(db, "logbook"), (snapshot) => {
-            logbookContainer.innerHTML = '';
-            const logs = [];
-            snapshot.forEach(doc => logs.push({ id: doc.id, ...doc.data() }));
-            logs.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
-            logs.forEach(log => {
-                const div = document.createElement('div');
-                div.className = 'log-entry';
-                const time = log.timestamp ? new Date(log.timestamp.seconds * 1000).toLocaleTimeString() : 'Maintenant';
-                div.innerHTML = `<div class="log-time">${time}</div><div>${log.content}</div>`;
-                logbookContainer.appendChild(div);
-            });
-        });
-    </script>
-</body>
-</html>
+        /* --- COLONNE DROITE : MAIN-COURANTE --- */
+        #right-panel { width: 360px; background-color: var(--bg-panel); border-left: 1px solid var(--border
