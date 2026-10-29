@@ -47,8 +47,8 @@
         .btn-end-mission { background: #ff4444; color: #fff; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; flex: 1; }
         .btn-end-mission:hover { background: #cc0000; }
 
-        /* Colonne Centrale : Carte Leaflet */
-        #map-container { flex: 1; height: 100vh; position: relative; background: #1a1a24; }
+        /* Colonne Centrale : Carte Leaflet forcée en plein écran flex */
+        #map-container { flex: 1; height: 100vh; position: relative; background: #1a1a24; overflow: hidden; }
         #map { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
 
         /* Colonne Droite : Main-Courante (MCI) */
@@ -101,4 +101,340 @@
             <h2>Main-Courante (MCI)</h2>
         </div>
         <div class="mci-input-row">
-            <input type="text
+            <input type="text" id="mc-input" placeholder="Consigner un événement au registre..." onkeypress="if(event.key === 'Enter') addLog()">
+            <button onclick="addLog()">Consigner</button>
+        </div>
+        <div id="logs-container"></div>
+    </div>
+
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+    <!-- Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        const firebaseConfig = {
+            apiKey: "AIzaSyCu0BK4h2hhaGV4C46C9y65rBJlnLftq3A",
+            authDomain: "rezoplus-police.firebaseapp.com",
+            databaseURL: "https://rezoplus-police-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "rezoplus-police",
+            storageBucket: "rezoplus-police.firebasestorage.app",
+            messagingSenderId: "561209004165",
+            appId: "1:561209004165:web:4c19c7b505bf7ad7df19ec"
+        };
+
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.database();
+
+        const DEFAULT_LAT = 48.7563;
+        const DEFAULT_LNG = 2.3215;
+
+        // Initialisation de la carte Leaflet
+        const map = L.map('map', {
+            center: [DEFAULT_LAT, DEFAULT_LNG],
+            zoom: 16
+        });
+
+        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Forcer le rechargement des dimensions de la carte à plusieurs moments clés pour éviter l'écran gris
+        window.addEventListener('load', () => {
+            setTimeout(() => { map.invalidateSize(); }, 200);
+            setTimeout(() => { map.invalidateSize(); }, 800);
+        });
+        window.addEventListener('resize', () => { map.invalidateSize(); });
+
+        const markers = {};
+        const previousStatuses = {};
+
+        function getStatusColor(status) {
+            switch(status) {
+                case 'SOS_ACTIF': return '#ff2222';
+                case 'EN_INTERVENTION': return '#ff8800';
+                case 'CONTROLE_PR': return '#f1c40f';
+                case 'ATTENTE_FOURRIERE': return '#009688';
+                case 'EN_PATROUILLE': return '#22bb33';
+                case 'TRANSPORT_ESCORTE': return '#00a8ff';
+                case 'ESCALE_TECHNIQUE': return '#e91e63';
+                case 'RETOUR_POSTE': return '#9c27b0';
+                default: return '#777777';
+            }
+        }
+
+        function getStatusClass(status) {
+            switch(status) {
+                case 'SOS_ACTIF': return 'sos';
+                case 'EN_INTERVENTION': return 'EN_INTERVENTION';
+                case 'CONTROLE_PR': return 'CONTROLE_PR';
+                case 'ATTENTE_FOURRIERE': return 'ATTENTE_FOURRIERE';
+                case 'EN_PATROUILLE': return 'EN_PATROUILLE';
+                case 'TRANSPORT_ESCORTE': return 'TRANSPORT_ESCORTE';
+                case 'ESCALE_TECHNIQUE': return 'ESCALE_TECHNIQUE';
+                case 'RETOUR_POSTE': return 'RETOUR_POSTE';
+                default: return 'INDISPONIBLE';
+            }
+        }
+
+        function centerOnUnit(unitId) {
+            if (markers[unitId]) {
+                const latLng = markers[unitId].getLatLng();
+                map.setView(latLng, 17, { animate: true });
+                markers[unitId].openPopup();
+            }
+        }
+
+        db.ref('units').on('child_removed', (snapshot) => {
+            const unitId = snapshot.key;
+            db.ref('mains_courantes').push({
+                message: `DÉCONNEXION -> Fin de service / Déconnexion du terminal : ${unitId}`,
+                timestamp: Date.now(),
+                author: 'Système',
+                statusColor: '#777777'
+            });
+            delete previousStatuses[unitId];
+            if (markers[unitId]) {
+                map.removeLayer(markers[unitId]);
+                delete markers[unitId];
+            }
+        });
+
+        // Écoute temps réel des unités connectées depuis l'application Android
+        db.ref('units').on('value', (snapshot) => {
+            try {
+                const units = snapshot.val();
+                const unitsContainer = document.getElementById('units-container');
+                const targetSelect = document.getElementById('target-unit');
+                
+                const currentSelectedTarget = targetSelect.value;
+
+                unitsContainer.innerHTML = '';
+                targetSelect.innerHTML = '<option value="">Sélectionner une unité active...</option>';
+
+                if (!units) {
+                    unitsContainer.innerHTML = '<p style="font-size: 12px; color: #aaa; text-align: center; padding: 10px;">Aucune unité en ligne sur Firebase (/units)</p>';
+                    return;
+                }
+
+                Object.keys(units).forEach((unitId) => {
+                    const unit = units[unitId];
+                    
+                    const opt = document.createElement('option');
+                    opt.value = unitId; 
+                    opt.textContent = unitId;
+                    targetSelect.appendChild(opt);
+
+                    let status = unit.status || 'INDISPONIBLE';
+                    let badgeColor = getStatusColor(status);
+
+                    if (previousStatuses[unitId] !== undefined && previousStatuses[unitId] !== status) {
+                        let logPrefix = "STATUT";
+                        if (status === 'SOS_ACTIF') {
+                            logPrefix = "🚨 DÉCLENCHEMENT SOS 🚨";
+                        }
+                        
+                        db.ref('mains_courantes').push({
+                            message: `${logPrefix} -> Indicatif : ${unitId} | Statut : ${status}`,
+                            timestamp: Date.now(),
+                            author: 'Système',
+                            statusColor: badgeColor
+                        });
+                    }
+                    previousStatuses[unitId] = status;
+
+                    let lat = DEFAULT_LAT;
+                    let lng = DEFAULT_LNG;
+
+                    if (unit.latitude !== undefined && unit.longitude !== undefined) {
+                        const parsedLat = parseFloat(unit.latitude);
+                        const parsedLng = parseFloat(unit.longitude);
+                        if (!isNaN(parsedLat) && !isNaN(parsedLng)) {
+                            lat = parsedLat;
+                            lng = parsedLng;
+                        }
+                    }
+
+                    const pinHtml = `
+                        <div style="display: flex; flex-direction: column; align-items: center; filter: drop-shadow(0px 3px 6px rgba(0,0,0,0.6)); cursor: pointer;">
+                            <div style="background-color: ${badgeColor}; color: #fff; padding: 6px 10px; border-radius: 6px; font-weight: bold; font-size: 12px; border: 2px solid #fff; white-space: nowrap; letter-spacing: 0.5px;">
+                                🚓 ${unitId}
+                            </div>
+                            <div style="width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 8px solid ${badgeColor}; margin-top: -1px;"></div>
+                        </div>
+                    `;
+
+                    const customIcon = L.divIcon({
+                        className: 'custom-tactical-pin',
+                        html: pinHtml,
+                        iconSize: [80, 45],
+                        iconAnchor: [40, 42]
+                    });
+
+                    if (markers[unitId]) {
+                        markers[unitId].setLatLng([lat, lng]);
+                        markers[unitId].setIcon(customIcon);
+                        markers[unitId].setPopupContent(`<b>Unité : ${unitId}</b><br>Statut: ${status}`);
+                    } else {
+                        const marker = L.marker([lat, lng], { icon: customIcon, draggable: true }).addTo(map)
+                            .bindPopup(`<b>Unité : ${unitId}</b><br>Glissez l'épingle pour simuler un repositionnement.`);
+
+                        marker.on('dragend', function(event) {
+                            const newPos = event.target.getLatLng();
+                            db.ref(`units/${unitId}`).update({
+                                latitude: newPos.lat,
+                                longitude: newPos.lng,
+                                derniere_maj: Date.now()
+                            });
+
+                            db.ref('mains_courantes').push({
+                                message: `RADIO -> Repositionnement manuel de ${unitId} à (${newPos.lat.toFixed(4)}, ${newPos.lng.toFixed(4)})`,
+                                timestamp: Date.now(),
+                                author: 'Opérateur PC',
+                                statusColor: '#00a8ff'
+                            });
+                        });
+
+                        markers[unitId] = marker;
+                    }
+
+                    let equipmentText = "Aucun équipement déclaré";
+                    if (unit.equipment && typeof unit.equipment === 'object') {
+                        const checkedItems = Object.keys(unit.equipment).filter(key => unit.equipment[key] === true || unit.equipment[key] === 'true');
+                        if (checkedItems.length > 0) {
+                            equipmentText = checkedItems.join(', ');
+                        }
+                    }
+
+                    let actionButtonsHtml = `<button class="btn-center-map" onclick="centerOnUnit('${unitId}')">🎯 Centrer</button>`;
+                    if (status === 'EN_INTERVENTION' && unit.active_mission) {
+                        actionButtonsHtml += `<button class="btn-end-mission" onclick="endMission('${unitId}')">Clôturer</button>`;
+                    }
+
+                    const cardClass = getStatusClass(status);
+                    const cardDiv = document.createElement('div');
+                    cardDiv.className = `card ${cardClass}`;
+
+                    cardDiv.innerHTML = `
+                        <div class="card-header-row">
+                            <span class="card-unit-title">🚓 ${unitId}</span>
+                            <span class="card-status-badge">${status}</span>
+                        </div>
+                        <p style="font-size: 11px; color: #ddd; margin-top: 4px; line-height: 1.3;">
+                            <strong>Équipage / Matériel :</strong> ${equipmentText}
+                        </p>
+                        <div class="btn-action-row">
+                            ${actionButtonsHtml}
+                        </div>
+                    `;
+                    unitsContainer.appendChild(cardDiv);
+                });
+
+                targetSelect.value = currentSelectedTarget;
+            } catch (err) {
+                console.error("Erreur d'affichage des unités :", err);
+            }
+        });
+
+        function sendMission() {
+            const unitId = document.getElementById('target-unit').value;
+            const title = document.getElementById('mission-title').value.trim();
+            const location = document.getElementById('mission-location').value.trim();
+
+            if (!unitId) {
+                alert("Veuillez sélectionner une unité active destinataire.");
+                return;
+            }
+            if (!title) {
+                alert("Veuillez indiquer l'objet de l'intervention.");
+                return;
+            }
+
+            const nowTimestamp = Date.now();
+            const updates = {};
+            updates[`units/${unitId}/status`] = "EN_INTERVENTION";
+            updates[`units/${unitId}/active_mission`] = {
+                title: title,
+                titre: title,
+                location: location || "Non précisée",
+                adresse: location || "Non précisée",
+                timestamp: nowTimestamp,
+                horodateur: nowTimestamp
+            };
+
+            db.ref().update(updates).then(() => {
+                db.ref('mains_courantes').push({
+                    message: `DISPATCH -> Ordre transmis à ${unitId} : ${title} (${location || "Lieu non précisé"})`,
+                    timestamp: nowTimestamp,
+                    author: 'Opérateur PC',
+                    statusColor: '#ff8800'
+                });
+
+                document.getElementById('mission-title').value = '';
+                document.getElementById('mission-location').value = '';
+            }).catch((error) => {
+                console.error("Erreur d'envoi de mission :", error);
+                alert("Erreur lors de la transmission : " + error.message);
+            });
+        }
+
+        function endMission(unitId) {
+            const nowTimestamp = Date.now();
+            const updates = {};
+            updates[`units/${unitId}/status`] = "EN_PATROUILLE";
+            updates[`units/${unitId}/active_mission`] = null;
+
+            db.ref().update(updates).then(() => {
+                db.ref('mains_courantes').push({
+                    message: `FIN MISSION -> L'unité ${unitId} a clôturé son intervention et repasse EN_PATROUILLE`,
+                    timestamp: nowTimestamp,
+                    author: 'Opérateur PC',
+                    statusColor: '#22bb33'
+                });
+            }).catch((error) => {
+                console.error("Erreur lors de la clôture de mission :", error);
+            });
+        }
+
+        function addLog() {
+            const input = document.getElementById('mc-input');
+            if (!input.value.trim()) return;
+
+            db.ref('mains_courantes').push({
+                message: input.value.trim(),
+                timestamp: Date.now(),
+                author: 'Opérateur PC',
+                statusColor: '#00a8ff'
+            });
+            input.value = '';
+        }
+
+        db.ref('mains_courantes').limitToLast(50).on('child_added', (snapshot) => {
+            const logId = snapshot.key;
+            if (document.getElementById(`log-${logId}`)) return;
+
+            const log = snapshot.val();
+            const dateObj = new Date(log.timestamp || Date.now());
+            const dateStr = dateObj.toLocaleDateString();
+            const timeStr = dateObj.toLocaleTimeString();
+            
+            const logsContainer = document.getElementById('logs-container');
+            const logDiv = document.createElement('div');
+            logDiv.id = `log-${logId}`;
+            logDiv.className = 'log-entry';
+            
+            logDiv.style.backgroundColor = log.statusColor || '#0088ff';
+
+            logDiv.innerHTML = `
+                <div class="log-time-badge">⏱ ${dateStr} - ${timeStr}</div>
+                <div class="log-text">${log.message}</div>
+            `;
+            logsContainer.prepend(logDiv);
+        });
+    </script>
+</body>
+</html>
