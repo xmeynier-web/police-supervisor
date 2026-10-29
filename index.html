@@ -1,254 +1,104 @@
 <!DOCTYPE html>
-<!-- 
-    Application : Police Supervisor - Poste de Commandement (CSU Fresnes)
-    Conception & Architecture : Xavier Meynier-Laloi
--->
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Poste de Commandement - Police Municipale</title>
+    <title>Police Municipale - Poste de Commandement Opérationnel (CSU)</title>
     <!-- Leaflet CSS -->
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <style>
-        :root {
-            --bg-main: #121319;
-            --bg-panel: #1a1c24;
-            --bg-card: #232631;
-            --bg-input: #12141a;
-            --border-color: #2e3240;
-            --text-main: #ffffff;
-            --text-muted: #8e95a5;
-            --orange-btn: #ff7a00;
-            --orange-btn-hover: #e66e00;
-            --blue-btn: #007bff;
-            --blue-btn-hover: #0056b3;
-            --green-card: #10b981;
-            --blue-card: #0284c7;
-        }
-
-        * { box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; margin: 0; padding: 0; background-color: var(--bg-main); color: var(--text-main); display: flex; height: 100vh; overflow: hidden; }
-
-        /* --- COLONNE GAUCHE : DISPATCH & UNITES --- */
-        #left-panel { width: 320px; background-color: var(--bg-panel); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 16px; overflow-y: auto; flex-shrink: 0; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+        body { display: flex; height: 100vh; width: 100vw; background: #1a1a24; color: #fff; overflow: hidden; }
         
-        .header-logo { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; }
-        .header-logo h1 { font-size: 15px; font-weight: 800; text-transform: uppercase; margin: 0; letter-spacing: 0.5px; line-height: 1.2; color: #ffffff; }
-
-        .dispatch-box { background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; padding: 14px; margin-bottom: 20px; }
-        .dispatch-box h3 { margin: 0 0 12px 0; font-size: 13px; font-weight: 700; color: #f3f4f6; display: flex; align-items: center; gap: 6px; }
+        /* Colonne Gauche : Commandement & Unités */
+        #sidebar { width: 380px; min-width: 380px; background: #222230; padding: 15px; display: flex; flex-direction: column; gap: 15px; border-right: 2px solid #333; overflow-y: auto; z-index: 10; }
         
-        input, select { width: 100%; padding: 9px 12px; margin-bottom: 10px; background-color: var(--bg-input); border: 1px solid var(--border-color); color: #ffffff; border-radius: 6px; font-size: 12px; }
-        input::placeholder { color: var(--text-muted); }
-        input:focus, select:focus { outline: none; border-color: var(--orange-btn); }
+        .header-title { display: flex; align-items: center; gap: 12px; padding-bottom: 5px; }
+        .header-title img { height: 60px; width: auto; object-fit: contain; }
+        .header-title h2 { font-size: 18px; font-weight: bold; color: #fff; margin: 0; line-height: 1.15; text-transform: uppercase; letter-spacing: 0.5px; }
 
-        button.btn-orange { width: 100%; background-color: var(--orange-btn); color: #ffffff; border: none; padding: 10px; font-weight: 700; font-size: 12px; border-radius: 6px; cursor: pointer; transition: background 0.2s; }
-        button.btn-orange:hover { background-color: var(--orange-btn-hover); }
+        .dispatch-box { background: #262638; padding: 12px; border-radius: 8px; border: 1px solid #444; display: flex; flex-direction: column; gap: 8px; }
+        .dispatch-box h3 { font-size: 14px; color: #ff8800; display: flex; align-items: center; gap: 6px; }
+        .dispatch-box input, .dispatch-box select { padding: 8px; border-radius: 4px; border: none; background: #1a1a24; color: #fff; font-size: 13px; }
+        .dispatch-box button { background: #ff8800; color: #fff; cursor: pointer; font-weight: bold; padding: 8px; border-radius: 4px; border: none; transition: background 0.2s; }
+        .dispatch-box button:hover { background: #e67a00; }
 
-        .section-title { font-size: 15px; font-weight: 800; margin-bottom: 12px; color: #ffffff; }
-        .units-list { display: flex; flex-direction: column; gap: 8px; }
-        .unit-card { background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px 12px; display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
-        .unit-card .status-dot { width: 8px; height: 8px; border-radius: 50%; background-color: var(--green-card); display: inline-block; margin-right: 6px; }
-
-        /* --- COLONNE CENTRALE : CARTE --- */
-        #map-container { flex-grow: 1; height: 100%; position: relative; background-color: #1e2028; }
-        #map { width: 100%; height: 100%; }
-
-        /* --- COLONNE DROITE : MAIN-COURANTE --- */
-        #right-panel { width: 360px; background-color: var(--bg-panel); border-left: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 16px; flex-shrink: 0; }
-        #right-panel h2 { font-size: 18px; font-weight: 800; margin: 0 0 14px 0; color: #ffffff; }
-
-        .mci-input-group { display: flex; gap: 8px; margin-bottom: 16px; }
-        .mci-input-group input { margin-bottom: 0; flex-grow: 1; }
-        button.btn-blue { background-color: var(--blue-btn); color: #ffffff; border: none; padding: 0 16px; font-weight: 700; font-size: 12px; border-radius: 6px; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
-        button.btn-blue:hover { background-color: var(--blue-btn-hover); }
-
-        .mci-feed { flex-grow: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; padding-right: 4px; }
+        .section-title { font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; color: #aaa; border-bottom: 1px solid #444; padding-bottom: 5px; margin-top: 5px; }
         
-        .mci-card { border-radius: 8px; padding: 10px 12px; color: #ffffff; font-size: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
-        .mci-card.green { background-color: #059669; border-left: 4px solid #10b981; }
-        .mci-card.blue { background-color: #0284c7; border-left: 4px solid #38bdf8; }
-        
-        .mci-header { font-weight: 800; font-size: 11px; margin-bottom: 4px; opacity: 0.9; }
-        .mci-body { font-weight: 600; line-height: 1.3; }
+        #units-container { display: flex; flex-direction: column; gap: 8px; }
+        .card { padding: 10px 12px; border-radius: 8px; border-left: 8px solid #777777; background: #2d2d3f; box-shadow: 0 2px 5px rgba(0,0,0,0.4); }
+        .card.sos { border-left-color: #ff2222 !important; background: #4a1515 !important; border: 1px solid #ff2222; animation: blink 1s infinite; }
+        .card.EN_INTERVENTION { border-left-color: #ff8800 !important; background: #3d2612 !important; }
+        .card.CONTROLE_PR { border-left-color: #f1c40f !important; background: #332e00 !important; }
+        .card.ATTENTE_FOURRIERE { border-left-color: #009688 !important; background: #00332c !important; }
+        .card.EN_PATROUILLE { border-left-color: #22bb33 !important; background: #123018 !important; }
+        .card.TRANSPORT_ESCORTE { border-left-color: #00a8ff !important; background: #12223b !important; }
+        .card.ESCALE_TECHNIQUE { border-left-color: #e91e63 !important; background: #381222 !important; }
+        .card.RETOUR_POSTE { border-left-color: #9c27b0 !important; background: #2b1638 !important; }
+        .card.INDISPONIBLE { border-left-color: #777777 !important; background: #222226 !important; opacity: 0.7; }
 
-        ::-webkit-scrollbar { width: 6px; }
-        ::-webkit-scrollbar-track { background: var(--bg-panel); }
-        ::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+        .card-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+        .card-unit-title { font-size: 15px; font-weight: bold; color: #fff; }
+        .card-status-badge { font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; background: rgba(255, 255, 255, 0.15); color: #fff; text-transform: uppercase; }
+
+        .btn-action-row { display: flex; gap: 6px; margin-top: 8px; }
+        .btn-center-map { background: #0088ff; color: #fff; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; flex: 1; }
+        .btn-center-map:hover { background: #0066cc; }
+        .btn-end-mission { background: #ff4444; color: #fff; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; flex: 1; }
+        .btn-end-mission:hover { background: #cc0000; }
+
+        /* Colonne Centrale : Carte Leaflet */
+        #map-container { flex: 1; height: 100vh; position: relative; background: #1a1a24; }
+        #map { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
+
+        /* Colonne Droite : Main-Courante (MCI) */
+        #main-courante { width: 400px; min-width: 400px; background: #222230; padding: 15px; border-left: 2px solid #333; display: flex; flex-direction: column; z-index: 10; }
+        .mci-input-row { margin: 10px 0; display: flex; gap: 5px; }
+        .mci-input-row input { flex: 1; padding: 8px; border-radius: 4px; border: none; background: #1a1a24; color: #fff; font-size: 13px; }
+        .mci-input-row button { padding: 8px 12px; background: #0088ff; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        
+        #logs-container { overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 6px; }
+        .log-entry { padding: 8px 10px; border-radius: 6px; font-size: 12px; color: #ffffff !important; box-shadow: 0 1px 3px rgba(0,0,0,0.3); line-height: 1.35; }
+        .log-time-badge { display: inline-block; font-size: 10px; font-weight: bold; background: rgba(0, 0, 0, 0.35); padding: 1px 5px; border-radius: 3px; margin-bottom: 3px; letter-spacing: 0.3px; }
+        .log-text { font-size: 12px; font-weight: 600; word-wrap: break-word; }
+
+        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
     </style>
 </head>
 <body>
 
-    <!-- 1. PANNEAU GAUCHE -->
-    <div id="left-panel">
-        <div class="header-logo">
-            <h1>Poste de<br>Commandement</h1>
+    <!-- COLONNE GAUCHE : Dispatch & Unités en ligne -->
+    <div id="sidebar">
+        <div class="header-title">
+            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/7/7c/Logo_Police_Municipale_%28France%29.svg/1280px-Logo_Police_Municipale_%28France%29.svg.png" alt="Logo PM">
+            <h2>Poste de<br>Commandement</h2>
         </div>
-
+        
         <div class="dispatch-box">
             <h3>📢 Dispatch Intervention</h3>
-            <select id="dispatch-unit">
-                <option value="">Sélectionner une unité...</option>
-                <option value="ALPHA">Unité ALPHA</option>
-                <option value="BRAVO">Unité BRAVO</option>
-                <option value="ILOTAGE">Ilotage Centre</option>
+            <select id="target-unit">
+                <option value="">Sélectionner une unité active...</option>
             </select>
-            <input type="text" id="dispatch-objet" placeholder="Objet (ex. Vol, Contrôle...)">
-            <input type="text" id="dispatch-adresse" placeholder="Adresse ou lieu dit">
-            <button class="btn-orange" onclick="sendDispatch()">Transmettre l'ordre de mission</button>
+            <input type="text" id="mission-title" placeholder="Objet (ex: Vol, Contrôle routier...)">
+            <input type="text" id="mission-location" placeholder="Adresse ou lieu-dit">
+            <button onclick="sendMission()">Transmettre l'ordre de mission</button>
         </div>
 
-        <div class="section-title">Unités en Ligne</div>
-        <div class="units-list" id="units-container">
-            <div class="unit-card">
-                <div><span class="status-dot"></span><strong>ALPHA</strong></div>
-                <span style="color:var(--text-muted);">En attente...</span>
-            </div>
+        <div class="section-title">Unités en Ligne (Android)</div>
+        <div id="units-container">
+            <p style="font-size: 12px; color: #aaa; text-align: center; padding: 10px;">En attente de connexion des patrouilles...</p>
         </div>
     </div>
 
-    <!-- 2. CARTE CENTRALE -->
+    <!-- COLONNE CENTRALE : Carte Leaflet -->
     <div id="map-container">
         <div id="map"></div>
     </div>
 
-    <!-- 3. PANNEAU DROIT (MAIN-COURANTE) -->
-    <div id="right-panel">
-        <h2>Main-Courante (MCI)</h2>
-        <div class="mci-input-group">
-            <input type="text" id="mci-text" placeholder="Nouvel événement">
-            <button class="btn-blue" onclick="addMciEntry()">Consigner</button>
+    <!-- COLONNE DROITE : Main-Courante Informatisée (MCI) -->
+    <div id="main-courante">
+        <div class="header-title" style="margin-bottom: 0;">
+            <h2>Main-Courante (MCI)</h2>
         </div>
-
-        <div class="mci-feed" id="mci-container">
-            <div class="mci-card green">
-                <div class="mci-header">Système • PCO</div>
-                <div class="mci-body">Console opérationnelle initialisée.</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Leaflet JS & Firebase -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyCua2pik8r_B9bo8s-OqFQunFVPPwHbmCg",
-            authDomain: "operator-supervisor-ops.firebaseapp.com",
-            projectId: "operator-supervisor-ops",
-            storageBucket: "operator-supervisor-ops.firebasestorage.app",
-            messagingSenderId: "390289085067",
-            appId: "1:390289085067:web:f6128eec4af06fb4143a8e"
-        };
-
-        try {
-            const app = initializeApp(firebaseConfig);
-            const db = getFirestore(app);
-
-            const map = L.map('map', { zoomControl: true }).setView([48.7530, 2.3250], 15);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-                maxZoom: 19,
-                attribution: '© OpenStreetMap contributors'
-            }).addTo(map);
-
-            const markers = {};
-            const unitsContainer = document.getElementById('units-container');
-            const mciContainer = document.getElementById('mci-container');
-
-            onSnapshot(collection(db, "units"), (snapshot) => {
-                if (snapshot.empty) return;
-                unitsContainer.innerHTML = '';
-                snapshot.forEach((docSnap) => {
-                    const data = docSnap.data();
-                    const unitId = docSnap.id;
-
-                    const card = document.createElement('div');
-                    card.className = 'unit-card';
-                    card.innerHTML = `
-                        <div><span class="status-dot"></span><strong>${unitId}</strong></div>
-                        <span style="color:var(--text-muted);">${data.status || 'En Patrouille'}</span>
-                    `;
-                    unitsContainer.appendChild(card);
-
-                    if (data.latitude && data.longitude) {
-                        if (markers[unitId]) {
-                            markers[unitId].setLatLng([data.latitude, data.longitude]);
-                        } else {
-                            markers[unitId] = L.marker([data.latitude, data.longitude]).addTo(map)
-                                .bindPopup(`<b>${unitId}</b><br>Statut: ${data.status || 'En Patrouille'}`);
-                        }
-                    }
-                });
-            });
-
-            window.sendDispatch = async function() {
-                const unit = document.getElementById('dispatch-unit').value;
-                const objet = document.getElementById('dispatch-objet').value;
-                const adresse = document.getElementById('dispatch-adresse').value;
-
-                if (!unit || !objet) {
-                    alert("Veuillez sélectionner une unité et indiquer un objet.");
-                    return;
-                }
-
-                await addDoc(collection(db, "missions"), {
-                    unitId: unit,
-                    objet: objet,
-                    adresse: adresse,
-                    timestamp: serverTimestamp(),
-                    status: "Transmise"
-                });
-
-                await addDoc(collection(db, "logbook"), {
-                    content: `DISPATCH -> Ordre transmis à ${unit} : ${objet}`,
-                    author: "PCO",
-                    type: "blue",
-                    timestamp: serverTimestamp()
-                });
-
-                document.getElementById('dispatch-objet').value = '';
-                document.getElementById('dispatch-adresse').value = '';
-            };
-
-            window.addMciEntry = async function() {
-                const text = document.getElementById('mci-text').value;
-                if (!text) return;
-
-                await addDoc(collection(db, "logbook"), {
-                    content: text,
-                    author: "Opérateur PC",
-                    type: "green",
-                    timestamp: serverTimestamp()
-                });
-                document.getElementById('mci-text').value = '';
-            };
-
-            onSnapshot(collection(db, "logbook"), (snapshot) => {
-                if (snapshot.empty) return;
-                mciContainer.innerHTML = '';
-                const logs = [];
-                snapshot.forEach(doc => logs.push({ id: doc.id, ...doc.data() }));
-                logs.sort((a, b) => (b.timestamp?.seconds || 0) - (a.timestamp?.seconds || 0));
-
-                logs.forEach(log => {
-                    const div = document.createElement('div');
-                    const cardType = log.type || 'green';
-                    div.className = `mci-card ${cardType}`;
-                    const timeStr = log.timestamp ? new Date(log.timestamp.seconds * 1000).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : 'À l\'instant';
-                    
-                    div.innerHTML = `
-                        <div class="mci-header">${timeStr} • ${log.author || 'PCO'}</div>
-                        <div class="mci-body">${log.content}</div>
-                    `;
-                    mciContainer.appendChild(div);
-                });
-            });
-        } catch (error) {
-            console.error("Erreur d'initialisation Firebase/Leaflet :", error);
-        }
-    </script>
-</body>
-</html>
+        <div class="mci-input-row">
+            <input type="text
