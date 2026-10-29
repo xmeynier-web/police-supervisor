@@ -47,7 +47,7 @@
         .btn-end-mission { background: #ff4444; color: #fff; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; flex: 1; }
         .btn-end-mission:hover { background: #cc0000; }
 
-        /* Colonne Centrale : Carte Leaflet forcée en plein écran flex */
+        /* Colonne Centrale : Carte Leaflet */
         #map-container { flex: 1; height: 100vh; position: relative; background: #1a1a24; overflow: hidden; }
         #map { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
 
@@ -143,7 +143,7 @@
             attribution: '© OpenStreetMap contributors'
         }).addTo(map);
 
-        // Forcer le rechargement des dimensions de la carte à plusieurs moments clés pour éviter l'écran gris
+        // Forcer le rechargement des dimensions de la carte
         window.addEventListener('load', () => {
             setTimeout(() => { map.invalidateSize(); }, 200);
             setTimeout(() => { map.invalidateSize(); }, 800);
@@ -204,7 +204,7 @@
             }
         });
 
-        // Écoute temps réel des unités connectées depuis l'application Android
+        // Écoute temps réel des unités connectées
         db.ref('units').on('value', (snapshot) => {
             try {
                 const units = snapshot.val();
