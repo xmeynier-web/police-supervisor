@@ -44,7 +44,7 @@
     .stats strong { color: #f8fafc; }
     .main-layout { flex: 1; display: flex; min-height: 0; width: 100%; }
     .col-left {
-      width: 330px;
+      width: 335px;
       background: #1e293b;
       border-right: 1px solid #334155;
       display: flex;
@@ -54,7 +54,7 @@
     .col-map { flex: 1; position: relative; background: #1e293b; min-width: 0; }
     #map { width: 100%; height: 100%; }
     .col-right {
-      width: 275px;
+      width: 280px;
       background: #1e293b;
       border-left: 1px solid #334155;
       display: flex;
@@ -95,36 +95,41 @@
     }
     .scroll { flex: 1; overflow-y: auto; padding: 10px; }
 
+    /* Surbrillance accentuée des cartes d'unités côté gauche */
     .card {
       background: #162032;
       border: 1px solid #334155;
-      border-left-width: 5px;
+      border-left-width: 6px;
       border-radius: 8px;
       padding: 10px;
       margin-bottom: 8px;
       cursor: pointer;
-      transition: transform 0.12s ease, box-shadow 0.12s ease;
+      transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
     }
     .card:hover { transform: translateX(2px); }
     .card.hi-PATROUILLE {
-      border-left-color: #3b82f6;
-      background: linear-gradient(90deg, rgba(37, 99, 235, 0.22) 0%, #162032 65%);
+      border-left-color: #60a5fa;
+      border-color: rgba(59, 130, 246, 0.55);
+      background: linear-gradient(90deg, rgba(37, 99, 235, 0.36) 0%, rgba(37, 99, 235, 0.12) 55%, #162032 100%);
     }
     .card.hi-INTERVENTION {
-      border-left-color: #ef4444;
-      background: linear-gradient(90deg, rgba(220, 38, 38, 0.26) 0%, #162032 65%);
+      border-left-color: #f87171;
+      border-color: rgba(239, 68, 68, 0.65);
+      background: linear-gradient(90deg, rgba(220, 38, 38, 0.42) 0%, rgba(220, 38, 38, 0.14) 55%, #162032 100%);
     }
     .card.hi-DISPONIBLE {
-      border-left-color: #22c55e;
-      background: linear-gradient(90deg, rgba(22, 163, 74, 0.22) 0%, #162032 65%);
+      border-left-color: #4ade80;
+      border-color: rgba(34, 197, 94, 0.55);
+      background: linear-gradient(90deg, rgba(22, 163, 74, 0.36) 0%, rgba(22, 163, 74, 0.12) 55%, #162032 100%);
     }
     .card.hi-PAUSE {
-      border-left-color: #f59e0b;
-      background: linear-gradient(90deg, rgba(217, 119, 6, 0.24) 0%, #162032 65%);
+      border-left-color: #fbbf24;
+      border-color: rgba(245, 158, 11, 0.6);
+      background: linear-gradient(90deg, rgba(217, 119, 6, 0.38) 0%, rgba(217, 119, 6, 0.13) 55%, #162032 100%);
     }
     .card.selected {
-      border-color: #38bdf8;
-      box-shadow: 0 0 0 1px #38bdf8, 0 4px 12px rgba(0, 0, 0, 0.35);
+      border-color: #ffffff;
+      box-shadow: 0 0 0 2px #38bdf8, 0 6px 14px rgba(0, 0, 0, 0.45);
     }
 
     .card-head { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
@@ -140,9 +145,9 @@
     .st-INTERVENTION { background: #dc2626; }
     .st-DISPONIBLE { background: #16a34a; }
     .st-PAUSE { background: #d97706; }
-    .meta { margin-top: 5px; font-size: 12px; color: #cbd5e1; display: flex; justify-content: space-between; }
+    .meta { margin-top: 5px; font-size: 12px; color: #e2e8f0; display: flex; justify-content: space-between; }
     .tags { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; }
-    .tag { font-size: 11px; padding: 2px 6px; border-radius: 5px; background: rgba(15, 23, 42, 0.65); border: 1px solid #334155; }
+    .tag { font-size: 11px; padding: 2px 6px; border-radius: 5px; background: rgba(15, 23, 42, 0.72); border: 1px solid #475569; }
     .toolbar {
       position: absolute;
       top: 10px;
@@ -225,17 +230,52 @@
     .item {
       background: #162032;
       border: 1px solid #334155;
-      border-left: 3px solid #334155;
+      border-left: 4px solid #334155;
       border-radius: 7px;
       padding: 7px 9px;
       margin-bottom: 6px;
       font-size: 11px;
     }
-    .item.status-log {
-      border-left-color: #f59e0b;
-      background: rgba(217, 119, 6, 0.12);
+
+    /* Couleurs de statut dans la main-courante */
+    .item.mci-st-PATROUILLE {
+      border-left-color: #60a5fa;
+      border-color: rgba(59, 130, 246, 0.55);
+      background: linear-gradient(90deg, rgba(37, 99, 235, 0.34) 0%, #162032 80%);
     }
-    .time { color: #38bdf8; font-family: monospace; font-size: 10px; margin-bottom: 2px; }
+    .item.mci-st-INTERVENTION {
+      border-left-color: #f87171;
+      border-color: rgba(239, 68, 68, 0.65);
+      background: linear-gradient(90deg, rgba(220, 38, 38, 0.38) 0%, #162032 80%);
+    }
+    .item.mci-st-DISPONIBLE {
+      border-left-color: #4ade80;
+      border-color: rgba(34, 197, 94, 0.55);
+      background: linear-gradient(90deg, rgba(22, 163, 74, 0.34) 0%, #162032 80%);
+    }
+    .item.mci-st-PAUSE {
+      border-left-color: #fbbf24;
+      border-color: rgba(245, 158, 11, 0.6);
+      background: linear-gradient(90deg, rgba(217, 119, 6, 0.36) 0%, #162032 80%);
+    }
+
+    .mci-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 4px;
+      margin-bottom: 3px;
+    }
+    .mci-badge {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 999px;
+      color: #fff;
+      white-space: nowrap;
+    }
+
+    .time { color: #38bdf8; font-family: monospace; font-size: 10px; }
     .marker-wrap { position: relative; width: 20px; height: 20px; }
     .marker-dot {
       width: 20px; height: 20px; border-radius: 50%;
@@ -294,9 +334,9 @@
       </div>
       <div class="panel active" id="p-dispatch">
         <form class="box" id="f-dispatch">
-          <input type="text" id="m-title" placeholder="Intitulé de mission" required />
-          <select id="m-unit"><option value="">Unité (optionnel)</option></select>
-          <textarea id="m-notes" rows="2" placeholder="Lieu / consignes"></textarea>
+          <select id="m-unit"><option value="">1. Unité (optionnel)</option></select>
+          <input type="text" id="m-title" placeholder="2. Intitulé de mission" required />
+          <textarea id="m-notes" rows="2" placeholder="3. Lieux / consignes / adresses"></textarea>
           <button type="submit" class="btn">Dispatcher & MCI</button>
         </form>
         <div class="scroll" id="missions-box"></div>
@@ -440,6 +480,22 @@
         return Object.prototype.hasOwnProperty.call(STATUS_LABELS, u) ? u : "PATROUILLE";
       }
 
+      function inferStatusFromEntry(entry) {
+        if (entry.newStatus) {
+          return normStatus(entry.newStatus);
+        }
+        const msg = String(entry.message || "");
+        const arrowIdx = msg.lastIndexOf("->");
+        if (arrowIdx !== -1) {
+          const target = msg.slice(arrowIdx + 2).trim().toLowerCase();
+          if (target.includes("intervention")) return "INTERVENTION";
+          if (target.includes("disponible")) return "DISPONIBLE";
+          if (target.includes("pause")) return "PAUSE";
+          if (target.includes("patrouille")) return "PATROUILLE";
+        }
+        return null;
+      }
+
       function makeIcon(id, code, label) {
         const st = normStatus(code);
         const wrap = document.createElement("div");
@@ -542,7 +598,7 @@
         mUnitSel.textContent = "";
         const defOpt = document.createElement("option");
         defOpt.value = "";
-        defOpt.textContent = "Unité (optionnel)";
+        defOpt.textContent = "1. Unité (optionnel)";
         mUnitSel.appendChild(defOpt);
 
         units.forEach((u) => {
@@ -635,17 +691,30 @@
           const dt = x.createdAt?.toDate ? x.createdAt.toDate().toLocaleTimeString("fr-FR") : "--:--:--";
           const msg = String(x.message || "");
           const isStatus = x.type === "STATUS_CHANGE" || msg.startsWith("Statut :");
+          const stCode = isStatus ? inferStatusFromEntry(x) : null;
+
           const el = document.createElement("div");
-          el.className = isStatus ? "item status-log" : "item";
+          el.className = stCode ? `item mci-st-${stCode}` : "item";
+
+          const head = document.createElement("div");
+          head.className = "mci-head";
 
           const timeDiv = document.createElement("div");
           timeDiv.className = "time";
           timeDiv.textContent = x.unitId ? `${dt} · ${x.unitId}` : dt;
+          head.appendChild(timeDiv);
+
+          if (stCode) {
+            const stBadge = document.createElement("span");
+            stBadge.className = `mci-badge st-${stCode}`;
+            stBadge.textContent = STATUS_LABELS[stCode];
+            head.appendChild(stBadge);
+          }
 
           const msgDiv = document.createElement("div");
           msgDiv.textContent = msg;
 
-          el.appendChild(timeDiv);
+          el.appendChild(head);
           el.appendChild(msgDiv);
           mciBox.appendChild(el);
         });
@@ -727,18 +796,21 @@
           const el = document.createElement("div");
           el.className = "item";
 
-          const title = document.createElement("strong");
-          title.textContent = m.title || "Mission";
-          el.appendChild(title);
-
           const uLine = document.createElement("div");
-          uLine.style.color = "#94a3b8";
-          uLine.style.marginTop = "2px";
+          uLine.style.color = "#38bdf8";
+          uLine.style.fontWeight = "700";
           uLine.textContent = `Unité : ${m.unitId || "Non affectée"}`;
           el.appendChild(uLine);
 
+          const title = document.createElement("strong");
+          title.style.display = "block";
+          title.style.marginTop = "2px";
+          title.textContent = m.title || "Mission";
+          el.appendChild(title);
+
           if (m.notes) {
             const nLine = document.createElement("div");
+            nLine.style.color = "#cbd5e1";
             nLine.style.marginTop = "3px";
             nLine.textContent = m.notes;
             el.appendChild(nLine);
@@ -759,11 +831,11 @@
 
       document.getElementById("f-dispatch").addEventListener("submit", async (e) => {
         e.preventDefault();
-        const title = document.getElementById("m-title").value.trim();
         const unitId = mUnitSel.value.trim();
+        const title = document.getElementById("m-title").value.trim();
         const notes = document.getElementById("m-notes").value.trim();
         if (!title) return;
-        await addDoc(collection(db, "missions"), { title, unitId, notes, status: "OUVERTE", createdAt: serverTimestamp() });
+        await addDoc(collection(db, "missions"), { unitId, title, notes, status: "OUVERTE", createdAt: serverTimestamp() });
         await addDoc(collection(db, "mci_logs"), {
           unitId,
           type: "DISPATCH",
