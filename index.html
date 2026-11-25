@@ -1,440 +1,305 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Police Municipale - Poste de Commandement Opérationnel (CSU)</title>
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
-        body { display: flex; height: 100vh; width: 100vw; background: #1a1a24; color: #fff; overflow: hidden; }
-        
-        /* Colonne Gauche : Commandement & Unités */
-        #sidebar { width: 380px; min-width: 380px; background: #222230; padding: 15px; display: flex; flex-direction: column; gap: 15px; border-right: 2px solid #333; overflow-y: auto; z-index: 10; }
-        
-        .header-title { display: flex; align-items: center; gap: 12px; padding-bottom: 5px; }
-        .header-title img { height: 60px; width: auto; object-fit: contain; }
-        .header-title h2 { font-size: 18px; font-weight: bold; color: #fff; margin: 0; line-height: 1.15; text-transform: uppercase; letter-spacing: 0.5px; }
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Console Superviseur — Géolocalisation</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <style>
+    * {
+      box-sizing: border-box;
+    }
 
-        .dispatch-box { background: #262638; padding: 12px; border-radius: 8px; border: 1px solid #444; display: flex; flex-direction: column; gap: 8px; }
-        .dispatch-box h3 { font-size: 14px; color: #ff8800; display: flex; align-items: center; gap: 6px; }
-        .dispatch-box input, .dispatch-box select { padding: 8px; border-radius: 4px; border: none; background: #1a1a24; color: #fff; font-size: 13px; }
-        .dispatch-box button { background: #ff8800; color: #fff; cursor: pointer; font-weight: bold; padding: 8px; border-radius: 4px; border: none; transition: background 0.2s; }
-        .dispatch-box button:hover { background: #e67a00; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      height: 100vh;
+      background: #f8fafc;
+      color: #0f172a;
+    }
 
-        .section-title { font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; color: #aaa; border-bottom: 1px solid #444; padding-bottom: 5px; margin-top: 5px; }
-        
-        #units-container { display: flex; flex-direction: column; gap: 8px; }
-        .card { padding: 10px 12px; border-radius: 8px; border-left: 8px solid #777777; background: #2d2d3f; box-shadow: 0 2px 5px rgba(0,0,0,0.4); }
-        .card.sos { border-left-color: #ff2222 !important; background: #4a1515 !important; border: 1px solid #ff2222; animation: blink 1s infinite; }
-        .card.EN_INTERVENTION { border-left-color: #ff8800 !important; background: #3d2612 !important; }
-        .card.CONTROLE_PR { border-left-color: #f1c40f !important; background: #332e00 !important; }
-        .card.ATTENTE_FOURRIERE { border-left-color: #009688 !important; background: #00332c !important; }
-        .card.EN_PATROUILLE { border-left-color: #22bb33 !important; background: #123018 !important; }
-        .card.TRANSPORT_ESCORTE { border-left-color: #00a8ff !important; background: #12223b !important; }
-        .card.ESCALE_TECHNIQUE { border-left-color: #e91e63 !important; background: #381222 !important; }
-        .card.RETOUR_POSTE { border-left-color: #9c27b0 !important; background: #2b1638 !important; }
-        .card.INDISPONIBLE { border-left-color: #777777 !important; background: #222226 !important; opacity: 0.7; }
+    #sidebar {
+      width: 340px;
+      padding: 14px;
+      overflow-y: auto;
+      border-right: 1px solid #e2e8f0;
+      background: #ffffff;
+    }
 
-        .card-header-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
-        .card-unit-title { font-size: 15px; font-weight: bold; color: #fff; }
-        .card-status-badge { font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; background: rgba(255, 255, 255, 0.15); color: #fff; text-transform: uppercase; }
+    #sidebar h2 {
+      margin: 0 0 12px;
+      font-size: 18px;
+    }
 
-        .btn-action-row { display: flex; gap: 6px; margin-top: 8px; }
-        .btn-center-map { background: #0088ff; color: #fff; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; flex: 1; }
-        .btn-center-map:hover { background: #0066cc; }
-        .btn-end-mission { background: #ff4444; color: #fff; border: none; padding: 5px 8px; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: bold; flex: 1; }
-        .btn-end-mission:hover { background: #cc0000; }
+    #map {
+      flex: 1;
+      height: 100%;
+    }
 
-        /* Colonne Centrale : Carte Leaflet */
-        #map-container { flex: 1; height: 100vh; position: relative; background: #1a1a24; overflow: hidden; }
-        #map { width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 1; }
+    .unit-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+      cursor: pointer;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
 
-        /* Colonne Droite : Main-Courante (MCI) */
-        #main-courante { width: 400px; min-width: 400px; background: #222230; padding: 15px; border-left: 2px solid #333; display: flex; flex-direction: column; z-index: 10; }
-        .mci-input-row { margin: 10px 0; display: flex; gap: 5px; }
-        .mci-input-row input { flex: 1; padding: 8px; border-radius: 4px; border: none; background: #1a1a24; color: #fff; font-size: 13px; }
-        .mci-input-row button { padding: 8px 12px; background: #0088ff; color: #fff; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        
-        #logs-container { overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 6px; }
-        .log-entry { padding: 8px 10px; border-radius: 6px; font-size: 12px; color: #ffffff !important; box-shadow: 0 1px 3px rgba(0,0,0,0.3); line-height: 1.35; }
-        .log-time-badge { display: inline-block; font-size: 10px; font-weight: bold; background: rgba(0, 0, 0, 0.35); padding: 1px 5px; border-radius: 3px; margin-bottom: 3px; letter-spacing: 0.3px; }
-        .log-text { font-size: 12px; font-weight: 600; word-wrap: break-word; }
+    .unit-card:hover {
+      border-color: #94a3b8;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+    }
 
-        @keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
-    </style>
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .equip-list {
+      margin: 6px 0 0;
+      padding-left: 18px;
+      font-size: 13px;
+      color: #334155;
+    }
+
+    .unit-divicon-root {
+      position: relative;
+      width: 22px;
+      height: 22px;
+    }
+
+    .unit-marker {
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      border: 3px solid #ffffff;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+      transition: transform 0.2s ease, background-color 0.2s ease;
+    }
+
+    .unit-label-box {
+      position: absolute;
+      top: 26px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      white-space: nowrap;
+      background: rgba(15, 23, 42, 0.92);
+      color: #ffffff;
+      padding: 3px 8px;
+      border-radius: 6px;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.28);
+      pointer-events: none;
+      line-height: 1.2;
+    }
+
+    .unit-label-name {
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .unit-label-status {
+      font-size: 10px;
+      font-weight: 600;
+      opacity: 0.92;
+    }
+
+    .status-PATROUILLE {
+      background-color: #2563eb;
+    }
+
+    .status-INTERVENTION {
+      background-color: #dc2626;
+      transform: scale(1.12);
+    }
+
+    .status-DISPONIBLE {
+      background-color: #16a34a;
+    }
+
+    .status-PAUSE {
+      background-color: #d97706;
+    }
+  </style>
 </head>
 <body>
+  <aside id="sidebar">
+    <h2>Unités actives</h2>
+    <div id="units-list"></div>
+  </aside>
+  <main id="map"></main>
 
-    <!-- COLONNE GAUCHE : Dispatch & Unités en ligne -->
-    <div id="sidebar">
-        <div class="header-title">
-            <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/7/7c/Logo_Police_Municipale_%28France%29.svg/1280px-Logo_Police_Municipale_%28France%29.svg.png" alt="Logo PM">
-            <h2>Poste de<br>Commandement</h2>
-        </div>
-        
-        <div class="dispatch-box">
-            <h3>📢 Dispatch Intervention</h3>
-            <select id="target-unit">
-                <option value="">Sélectionner une unité active...</option>
-            </select>
-            <input type="text" id="mission-title" placeholder="Objet (ex: Vol, Contrôle routier...)">
-            <input type="text" id="mission-location" placeholder="Adresse ou lieu-dit">
-            <button onclick="sendMission()">Transmettre l'ordre de mission</button>
-        </div>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+    import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
-        <div class="section-title">Unités en Ligne (Android)</div>
-        <div id="units-container">
-            <p style="font-size: 12px; color: #aaa; text-align: center; padding: 10px;">En attente de connexion des patrouilles...</p>
-        </div>
-    </div>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCua2pik8r_B9bo8s-OqFQunFVPPwHbmCg",
+      authDomain: "operator-supervisor-ops.firebaseapp.com",
+      projectId: "operator-supervisor-ops",
+      storageBucket: "operator-supervisor-ops.firebasestorage.app",
+      messagingSenderId: "390289085067",
+      appId: "1:390289085067:web:f6128eec4af06fb4143a8e"
+    };
 
-    <!-- COLONNE CENTRALE : Carte Leaflet -->
-    <div id="map-container">
-        <div id="map"></div>
-    </div>
+    const STATUS_CONFIG = {
+      PATROUILLE: { label: "En patrouille", badgeBg: "#dbeafe", badgeFg: "#1d4ed8" },
+      INTERVENTION: { label: "En intervention", badgeBg: "#fee2e2", badgeFg: "#b91c1c" },
+      DISPONIBLE: { label: "Disponible", badgeBg: "#dcfce7", badgeFg: "#15803d" },
+      PAUSE: { label: "En pause", badgeBg: "#fef3c7", badgeFg: "#b45309" }
+    };
 
-    <!-- COLONNE DROITE : Main-Courante Informatisée (MCI) -->
-    <div id="main-courante">
-        <div class="header-title" style="margin-bottom: 0;">
-            <h2>Main-Courante (MCI)</h2>
-        </div>
-        <div class="mci-input-row">
-            <input type="text" id="mc-input" placeholder="Consigner un événement au registre..." onkeypress="if(event.key === 'Enter') addLog()">
-            <button onclick="addLog()">Consigner</button>
-        </div>
-        <div id="logs-container"></div>
-    </div>
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    const map = L.map("map").setView([48.75, 2.33], 13);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      attribution: "© OpenStreetMap contributors"
+    }).addTo(map);
 
-    <script>
-        const firebaseConfig = {
-            apiKey: "AIzaSyCu0BK4h2hhaGV4C46C9y65rBJlnLftq3A",
-            authDomain: "rezoplus-police.firebaseapp.com",
-            databaseURL: "https://rezoplus-police-default-rtdb.europe-west1.firebasedatabase.app",
-            projectId: "rezoplus-police",
-            storageBucket: "rezoplus-police.firebasestorage.app",
-            messagingSenderId: "561209004165",
-            appId: "1:561209004165:web:4c19c7b505bf7ad7df19ec"
-        };
+    const markers = new Map();
+    const unitsListEl = document.getElementById("units-list");
 
-        if (!firebase.apps.length) {
-            firebase.initializeApp(firebaseConfig);
-        }
-        const db = firebase.database();
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&")
+        .replaceAll("<", "<")
+        .replaceAll(">", ">")
+        .replaceAll('"', """);
+    }
 
-        const DEFAULT_LAT = 48.7563;
-        const DEFAULT_LNG = 2.3215;
+    function getStatusConfig(statusCode) {
+      const normalized = String(statusCode || "PATROUILLE").toUpperCase();
+      return STATUS_CONFIG[normalized] || STATUS_CONFIG.PATROUILLE;
+    }
 
-        // Initialisation de la carte Leaflet
-        const map = L.map('map', {
-            center: [DEFAULT_LAT, DEFAULT_LNG],
-            zoom: 16
+    function formatEquipment(equipment) {
+      if (!Array.isArray(equipment) || equipment.length === 0) {
+        return "<li>Aucun matériel signalé</li>";
+      }
+      return equipment.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+    }
+
+    function createLabeledStatusIcon(unitName, statusCode, statusLabel) {
+      const normalized = String(statusCode || "PATROUILLE").toUpperCase();
+      const safeClass = Object.prototype.hasOwnProperty.call(STATUS_CONFIG, normalized)
+        ? `status-${normalized}`
+        : "status-PATROUILLE";
+
+      return L.divIcon({
+        className: "",
+        html: `
+          <div class="unit-divicon-root">
+            <div class="unit-marker ${safeClass}"></div>
+            <div class="unit-label-box">
+              <span class="unit-label-name">${escapeHtml(unitName)}</span>
+              <span class="unit-label-status">${escapeHtml(statusLabel)}</span>
+            </div>
+          </div>
+        `,
+        iconSize: [22, 22],
+        iconAnchor: [11, 11],
+        popupAnchor: [0, -14]
+      });
+    }
+
+    function renderSidebar(units) {
+      unitsListEl.innerHTML = "";
+      if (units.length === 0) {
+        unitsListEl.innerHTML = "<p>Aucune unité active dans <code>live_positions</code>.</p>";
+        return;
+      }
+
+      for (const unit of units) {
+        const cfg = getStatusConfig(unit.operationalStatus);
+        const card = document.createElement("div");
+        card.className = "unit-card";
+        card.innerHTML = `
+          <div><strong>${escapeHtml(unit.unitName)}</strong> <small>(${escapeHtml(unit.unitId)})</small></div>
+          <div style="margin-top:4px;">
+            <span class="badge" style="background:${cfg.badgeBg};color:${cfg.badgeFg};">
+              ${escapeHtml(unit.operationalStatusLabel)}
+            </span>
+          </div>
+          ${unit.missionNote ? `<div style="margin-top:6px;font-size:13px;">Note : ${escapeHtml(unit.missionNote)}</div>` : ""}
+          <ul class="equip-list">${formatEquipment(unit.equipment)}</ul>
+        `;
+        card.addEventListener("click", () => {
+          if (typeof unit.latitude === "number" && typeof unit.longitude === "number") {
+            map.setView([unit.latitude, unit.longitude], 16);
+            markers.get(unit.unitId)?.openPopup();
+          }
+        });
+        unitsListEl.appendChild(card);
+      }
+    }
+
+    onSnapshot(collection(db, "live_positions"), (snapshot) => {
+      const units = [];
+      const seenUnitIds = new Set();
+
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data() || {};
+        const unitId = String(data.unitId || docSnap.id);
+        const unitName = String(data.unitName || unitId);
+        const operationalStatus = String(data.operationalStatus || "PATROUILLE").toUpperCase();
+        const cfg = getStatusConfig(operationalStatus);
+        const operationalStatusLabel = String(data.operationalStatusLabel || cfg.label);
+        const equipment = Array.isArray(data.equipment) ? data.equipment : [];
+        const missionNote = typeof data.missionNote === "string" ? data.missionNote : "";
+        const lat = typeof data.latitude === "number" ? data.latitude : null;
+        const lng = typeof data.longitude === "number" ? data.longitude : null;
+        const speedKmh = typeof data.speedKmh === "number" ? data.speedKmh.toFixed(1) : "0.0";
+
+        seenUnitIds.add(unitId);
+        units.push({
+          unitId,
+          unitName,
+          operationalStatus,
+          operationalStatusLabel,
+          equipment,
+          missionNote,
+          latitude: lat,
+          longitude: lng
         });
 
-        L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: '© OpenStreetMap contributors'
-        }).addTo(map);
+        if (lat !== null && lng !== null) {
+          const popupHtml = `
+            <div>
+              <strong>${escapeHtml(unitName)}</strong> (${escapeHtml(unitId)})<br/>
+              <strong>Statut :</strong> ${escapeHtml(operationalStatusLabel)}<br/>
+              <strong>Vitesse :</strong> ${speedKmh} km/h<br/>
+              ${missionNote ? `<strong>Note :</strong> ${escapeHtml(missionNote)}<br/>` : ""}
+              <strong>Matériel :</strong>
+              <ul class="equip-list">${formatEquipment(equipment)}</ul>
+            </div>
+          `;
+          const icon = createLabeledStatusIcon(unitName, operationalStatus, operationalStatusLabel);
 
-        // Forcer le rechargement des dimensions de la carte
-        window.addEventListener('load', () => {
-            setTimeout(() => { map.invalidateSize(); }, 200);
-            setTimeout(() => { map.invalidateSize(); }, 800);
-        });
-        window.addEventListener('resize', () => { map.invalidateSize(); });
-
-        const markers = {};
-        const previousStatuses = {};
-
-        function getStatusColor(status) {
-            switch(status) {
-                case 'SOS_ACTIF': return '#ff2222';
-                case 'EN_INTERVENTION': return '#ff8800';
-                case 'CONTROLE_PR': return '#f1c40f';
-                case 'ATTENTE_FOURRIERE': return '#009688';
-                case 'EN_PATROUILLE': return '#22bb33';
-                case 'TRANSPORT_ESCORTE': return '#00a8ff';
-                case 'ESCALE_TECHNIQUE': return '#e91e63';
-                case 'RETOUR_POSTE': return '#9c27b0';
-                default: return '#777777';
-            }
+          if (markers.has(unitId)) {
+            const marker = markers.get(unitId);
+            marker.setLatLng([lat, lng]);
+            marker.setIcon(icon);
+            marker.setPopupContent(popupHtml);
+          } else {
+            const marker = L.marker([lat, lng], { icon })
+              .addTo(map)
+              .bindPopup(popupHtml);
+            markers.set(unitId, marker);
+          }
+        } else if (markers.has(unitId)) {
+          map.removeLayer(markers.get(unitId));
+          markers.delete(unitId);
         }
+      });
 
-        function getStatusClass(status) {
-            switch(status) {
-                case 'SOS_ACTIF': return 'sos';
-                case 'EN_INTERVENTION': return 'EN_INTERVENTION';
-                case 'CONTROLE_PR': return 'CONTROLE_PR';
-                case 'ATTENTE_FOURRIERE': return 'ATTENTE_FOURRIERE';
-                case 'EN_PATROUILLE': return 'EN_PATROUILLE';
-                case 'TRANSPORT_ESCORTE': return 'TRANSPORT_ESCORTE';
-                case 'ESCALE_TECHNIQUE': return 'ESCALE_TECHNIQUE';
-                case 'RETOUR_POSTE': return 'RETOUR_POSTE';
-                default: return 'INDISPONIBLE';
-            }
-        }
-
-        function centerOnUnit(unitId) {
-            if (markers[unitId]) {
-                const latLng = markers[unitId].getLatLng();
-                map.setView(latLng, 17, { animate: true });
-                markers[unitId].openPopup();
-            }
-        }
-
-        db.ref('units').on('child_removed', (snapshot) => {
-            const unitId = snapshot.key;
-            db.ref('mains_courantes').push({
-                message: `DÉCONNEXION -> Fin de service / Déconnexion du terminal : ${unitId}`,
-                timestamp: Date.now(),
-                author: 'Système',
-                statusColor: '#777777'
-            });
-            delete previousStatuses[unitId];
-            if (markers[unitId]) {
-                map.removeLayer(markers[unitId]);
-                delete markers[unitId];
-            }
-        });
-
-        // Écoute temps réel des unités connectées
-        db.ref('units').on('value', (snapshot) => {
-            try {
-                const units = snapshot.val();
-                const unitsContainer = document.getElementById('units-container');
-                const targetSelect = document.getElementById('target-unit');
-                
-                const currentSelectedTarget = targetSelect.value;
-
-                unitsContainer.innerHTML = '';
-                targetSelect.innerHTML = '<option value="">Sélectionner une unité active...</option>';
-
-                if (!units) {
-                    unitsContainer.innerHTML = '<p style="font-size: 12px; color: #aaa; text-align: center; padding: 10px;">Aucune unité en ligne sur Firebase (/units)</p>';
-                    return;
-                }
-
-                Object.keys(units).forEach((unitId) => {
-                    const unit = units[unitId];
-                    
-                    const opt = document.createElement('option');
-                    opt.value = unitId; 
-                    opt.textContent = unitId;
-                    targetSelect.appendChild(opt);
-
-                    let status = unit.status || 'INDISPONIBLE';
-                    let badgeColor = getStatusColor(status);
-
-                    if (previousStatuses[unitId] !== undefined && previousStatuses[unitId] !== status) {
-                        let logPrefix = "STATUT";
-                        if (status === 'SOS_ACTIF') {
-                            logPrefix = "🚨 DÉCLENCHEMENT SOS 🚨";
-                        }
-                        
-                        db.ref('mains_courantes').push({
-                            message: `${logPrefix} -> Indicatif : ${unitId} | Statut : ${status}`,
-                            timestamp: Date.now(),
-                            author: 'Système',
-                            statusColor: badgeColor
-                        });
-                    }
-                    previousStatuses[unitId] = status;
-
-                    let lat = DEFAULT_LAT;
-                    let lng = DEFAULT_LNG;
-
-                    if (unit.latitude !== undefined && unit.longitude !== undefined) {
-                        const parsedLat = parseFloat(unit.latitude);
-                        const parsedLng = parseFloat(unit.longitude);
-                        if (!isNaN(parsedLat) && !isNaN(parsedLng)) {
-                            lat = parsedLat;
-                            lng = parsedLng;
-                        }
-                    }
-
-                    const pinHtml = `
-                        <div style="display: flex; flex-direction: column; align-items: center; filter: drop-shadow(0px 3px 6px rgba(0,0,0,0.6)); cursor: pointer;">
-                            <div style="background-color: ${badgeColor}; color: #fff; padding: 6px 10px; border-radius: 6px; font-weight: bold; font-size: 12px; border: 2px solid #fff; white-space: nowrap; letter-spacing: 0.5px;">
-                                🚓 ${unitId}
-                            </div>
-                            <div style="width: 0; height: 0; border-left: 6px solid transparent; border-right: 6px solid transparent; border-top: 8px solid ${badgeColor}; margin-top: -1px;"></div>
-                        </div>
-                    `;
-
-                    const customIcon = L.divIcon({
-                        className: 'custom-tactical-pin',
-                        html: pinHtml,
-                        iconSize: [80, 45],
-                        iconAnchor: [40, 42]
-                    });
-
-                    if (markers[unitId]) {
-                        markers[unitId].setLatLng([lat, lng]);
-                        markers[unitId].setIcon(customIcon);
-                        markers[unitId].setPopupContent(`<b>Unité : ${unitId}</b><br>Statut: ${status}`);
-                    } else {
-                        const marker = L.marker([lat, lng], { icon: customIcon, draggable: true }).addTo(map)
-                            .bindPopup(`<b>Unité : ${unitId}</b><br>Glissez l'épingle pour simuler un repositionnement.`);
-
-                        marker.on('dragend', function(event) {
-                            const newPos = event.target.getLatLng();
-                            db.ref(`units/${unitId}`).update({
-                                latitude: newPos.lat,
-                                longitude: newPos.lng,
-                                derniere_maj: Date.now()
-                            });
-
-                            db.ref('mains_courantes').push({
-                                message: `RADIO -> Repositionnement manuel de ${unitId} à (${newPos.lat.toFixed(4)}, ${newPos.lng.toFixed(4)})`,
-                                timestamp: Date.now(),
-                                author: 'Opérateur PC',
-                                statusColor: '#00a8ff'
-                            });
-                        });
-
-                        markers[unitId] = marker;
-                    }
-
-                    let equipmentText = "Aucun équipement déclaré";
-                    if (unit.equipment && typeof unit.equipment === 'object') {
-                        const checkedItems = Object.keys(unit.equipment).filter(key => unit.equipment[key] === true || unit.equipment[key] === 'true');
-                        if (checkedItems.length > 0) {
-                            equipmentText = checkedItems.join(', ');
-                        }
-                    }
-
-                    let actionButtonsHtml = `<button class="btn-center-map" onclick="centerOnUnit('${unitId}')">🎯 Centrer</button>`;
-                    if (status === 'EN_INTERVENTION' && unit.active_mission) {
-                        actionButtonsHtml += `<button class="btn-end-mission" onclick="endMission('${unitId}')">Clôturer</button>`;
-                    }
-
-                    const cardClass = getStatusClass(status);
-                    const cardDiv = document.createElement('div');
-                    cardDiv.className = `card ${cardClass}`;
-
-                    cardDiv.innerHTML = `
-                        <div class="card-header-row">
-                            <span class="card-unit-title">🚓 ${unitId}</span>
-                            <span class="card-status-badge">${status}</span>
-                        </div>
-                        <p style="font-size: 11px; color: #ddd; margin-top: 4px; line-height: 1.3;">
-                            <strong>Équipage / Matériel :</strong> ${equipmentText}
-                        </p>
-                        <div class="btn-action-row">
-                            ${actionButtonsHtml}
-                        </div>
-                    `;
-                    unitsContainer.appendChild(cardDiv);
-                });
-
-                targetSelect.value = currentSelectedTarget;
-            } catch (err) {
-                console.error("Erreur d'affichage des unités :", err);
-            }
-        });
-
-        function sendMission() {
-            const unitId = document.getElementById('target-unit').value;
-            const title = document.getElementById('mission-title').value.trim();
-            const location = document.getElementById('mission-location').value.trim();
-
-            if (!unitId) {
-                alert("Veuillez sélectionner une unité active destinataire.");
-                return;
-            }
-            if (!title) {
-                alert("Veuillez indiquer l'objet de l'intervention.");
-                return;
-            }
-
-            const nowTimestamp = Date.now();
-            const updates = {};
-            updates[`units/${unitId}/status`] = "EN_INTERVENTION";
-            updates[`units/${unitId}/active_mission`] = {
-                title: title,
-                titre: title,
-                location: location || "Non précisée",
-                adresse: location || "Non précisée",
-                timestamp: nowTimestamp,
-                horodateur: nowTimestamp
-            };
-
-            db.ref().update(updates).then(() => {
-                db.ref('mains_courantes').push({
-                    message: `DISPATCH -> Ordre transmis à ${unitId} : ${title} (${location || "Lieu non précisé"})`,
-                    timestamp: nowTimestamp,
-                    author: 'Opérateur PC',
-                    statusColor: '#ff8800'
-                });
-
-                document.getElementById('mission-title').value = '';
-                document.getElementById('mission-location').value = '';
-            }).catch((error) => {
-                console.error("Erreur d'envoi de mission :", error);
-                alert("Erreur lors de la transmission : " + error.message);
-            });
-        }
-
-        function endMission(unitId) {
-            const nowTimestamp = Date.now();
-            const updates = {};
-            updates[`units/${unitId}/status`] = "EN_PATROUILLE";
-            updates[`units/${unitId}/active_mission`] = null;
-
-            db.ref().update(updates).then(() => {
-                db.ref('mains_courantes').push({
-                    message: `FIN MISSION -> L'unité ${unitId} a clôturé son intervention et repasse EN_PATROUILLE`,
-                    timestamp: nowTimestamp,
-                    author: 'Opérateur PC',
-                    statusColor: '#22bb33'
-                });
-            }).catch((error) => {
-                console.error("Erreur lors de la clôture de mission :", error);
-            });
-        }
-
-        function addLog() {
-            const input = document.getElementById('mc-input');
-            if (!input.value.trim()) return;
-
-            db.ref('mains_courantes').push({
-                message: input.value.trim(),
-                timestamp: Date.now(),
-                author: 'Opérateur PC',
-                statusColor: '#00a8ff'
-            });
-            input.value = '';
-        }
-
-        db.ref('mains_courantes').limitToLast(50).on('child_added', (snapshot) => {
-            const logId = snapshot.key;
-            if (document.getElementById(`log-${logId}`)) return;
-
-            const log = snapshot.val();
-            const dateObj = new Date(log.timestamp || Date.now());
-            const dateStr = dateObj.toLocaleDateString();
-            const timeStr = dateObj.toLocaleTimeString();
-            
-            const logsContainer = document.getElementById('logs-container');
-            const logDiv = document.createElement('div');
-            logDiv.id = `log-${logId}`;
-            logDiv.className = 'log-entry';
-            
-            logDiv.style.backgroundColor = log.statusColor || '#0088ff';
-
-            logDiv.innerHTML = `
-                <div class="log-time-badge">⏱ ${dateStr} - ${timeStr}</div>
-                <div class="log-text">${log.message}</div>
-            `;
-            logsContainer.prepend(logDiv);
-        });
-    </script>
-</body>
-</html>
+      for (const [existingId, marker] of markers.entries()) {
+        if (!seenUnitIds.has(existingId))
