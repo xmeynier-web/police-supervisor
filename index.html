@@ -238,7 +238,7 @@
         <button class="fbtn" data-f="PAUSE">Pause</button>
       </div>
       <div class="scroll" id="units-box">
-        <p style="color:#94a3b8;font-size:12px;">En attente des données Firestore...</p>
+        <p style="color:#94a3b8;font-size:12px;">Connexion Firestore en cours...</p>
       </div>
     </div>
 
@@ -295,261 +295,279 @@
         setTimeout(() => window.supMap && window.supMap.invalidateSize(), 60);
       });
     });
+    setTimeout(() => {
+      const st = document.getElementById("status-txt");
+      const box = document.getElementById("units-box");
+      if (st && st.textContent === "Chargement...") {
+        st.textContent = "Timeout / Bloqué";
+        st.style.color = "#f87171";
+        if (box) {
+          box.innerHTML = '<p style="color:#f87171;font-size:12px;">Aucune réponse de Firestore après 5s. Vérifiez l\'accès à <code>gstatic.com</code>, les règles Firestore ou la console (F12).</p>';
+        }
+      }
+    }, 5000);
   </script>
 
   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-    import {
-      getFirestore, collection, addDoc, onSnapshot, query, orderBy, limit, serverTimestamp
-    } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
-
-    const firebaseConfig = {
-      apiKey: "AIzaSyCua2pik8r_B9bo8s-OqFQunFVPPwHbmCg",
-      authDomain: "operator-supervisor-ops.firebaseapp.com",
-      projectId: "operator-supervisor-ops",
-      storageBucket: "operator-supervisor-ops.firebasestorage.app",
-      messagingSenderId: "390289085067",
-      appId: "1:390289085067:web:f6128eec4af06fb4143a8e"
-    };
-
-    const STATUS_LABELS = {
-      PATROUILLE: "En patrouille",
-      INTERVENTION: "En intervention",
-      DISPONIBLE: "Disponible",
-      PAUSE: "En pause"
-    };
-
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
-    const map = window.supMap;
-
     const statusTxt = document.getElementById("status-txt");
     const unitsBox = document.getElementById("units-box");
-    const missionsBox = document.getElementById("missions-box");
-    const mciBox = document.getElementById("mci-box");
-    const mUnitSel = document.getElementById("m-unit");
 
-    const markers = new Map();
-    let units = [];
-    let filterCode = "ALL";
-    let selectedId = null;
-    let trailOn = false;
-    let trailLine = null;
-    let unsubTrail = null;
-    let fittedOnce = false;
+    try {
+      const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js");
+      const {
+        getFirestore, collection, addDoc, onSnapshot, query, orderBy, limit, serverTimestamp
+      } = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
 
-    const esc = (v) => String(v ?? "")
-      .replace(/&/g, "&")
-      .replace(/</g, "<")
-      .replace(/>/g, ">")
-      .replace(/"/g, """);
+      const firebaseConfig = {
+        apiKey: "AIzaSyCua2pik8r_B9bo8s-OqFQunFVPPwHbmCg",
+        authDomain: "operator-supervisor-ops.firebaseapp.com",
+        projectId: "operator-supervisor-ops",
+        storageBucket: "operator-supervisor-ops.firebasestorage.app",
+        messagingSenderId: "390289085067",
+        appId: "1:390289085067:web:f6128eec4af06fb4143a8e"
+      };
 
-    const normStatus = (c) => {
-      const u = String(c || "PATROUILLE").toUpperCase();
-      return Object.prototype.hasOwnProperty.call(STATUS_LABELS, u) ? u : "PATROUILLE";
-    };
+      const STATUS_LABELS = {
+        PATROUILLE: "En patrouille",
+        INTERVENTION: "En intervention",
+        DISPONIBLE: "Disponible",
+        PAUSE: "En pause"
+      };
 
-    function makeIcon(id, code, label) {
-      const st = normStatus(code);
-      return L.divIcon({
-        className: "",
-        html: '<div class="marker-wrap"><div class="marker-dot st-' + st + '"></div><div class="marker-tag">' + esc(id) + '<span class="marker-sub">' + esc(label) + '</span></div></div>',
-        iconSize: [20, 20],
-        iconAnchor: [10, 10],
-        popupAnchor: [0, -12]
+      const app = initializeApp(firebaseConfig);
+      const db = getFirestore(app);
+      const map = window.supMap;
+
+      const missionsBox = document.getElementById("missions-box");
+      const mciBox = document.getElementById("mci-box");
+      const mUnitSel = document.getElementById("m-unit");
+
+      const markers = new Map();
+      let units = [];
+      let filterCode = "ALL";
+      let selectedId = null;
+      let trailOn = false;
+      let trailLine = null;
+      let unsubTrail = null;
+      let fittedOnce = false;
+
+      const esc = (v) => String(v ?? "")
+        .replace(/&/g, "&")
+        .replace(/</g, "<")
+        .replace(/>/g, ">")
+        .replace(/"/g, """);
+
+      const normStatus = (c) => {
+        const u = String(c || "PATROUILLE").toUpperCase();
+        return Object.prototype.hasOwnProperty.call(STATUS_LABELS, u) ? u : "PATROUILLE";
+      };
+
+      function makeIcon(id, code, label) {
+        const st = normStatus(code);
+        return L.divIcon({
+          className: "",
+          html: '<div class="marker-wrap"><div class="marker-dot st-' + st + '"></div><div class="marker-tag">' + esc(id) + '<span class="marker-sub">' + esc(label) + '</span></div></div>',
+          iconSize: [20, 20],
+          iconAnchor: [10, 10],
+          popupAnchor: [0, -12]
+        });
+      }
+
+      function stopTrail() {
+        if (unsubTrail) { unsubTrail(); unsubTrail = null; }
+        if (trailLine && map) { map.removeLayer(trailLine); trailLine = null; }
+      }
+
+      function startTrail(id) {
+        stopTrail();
+        if (!trailOn || !id || !map) return;
+        const qHist = query(collection(db, "live_positions", id, "history"), orderBy("updatedAt", "desc"), limit(50));
+        unsubTrail = onSnapshot(qHist, (snap) => {
+          const pts = [];
+          snap.forEach((d) => {
+            const x = d.data() || {};
+            if (typeof x.latitude === "number" && typeof x.longitude === "number") {
+              pts.push([x.latitude, x.longitude]);
+            }
+          });
+          pts.reverse();
+          if (trailLine) map.removeLayer(trailLine);
+          if (pts.length > 1) {
+            trailLine = L.polyline(pts, { color: "#38bdf8", weight: 3, dashArray: "6,6" }).addTo(map);
+          }
+        }, () => {});
+      }
+
+      function pickUnit(id, center) {
+        selectedId = id;
+        document.getElementById("sel-txt").textContent = id || "Aucune";
+        const u = units.find((item) => item.id === id);
+        if (u && center && map && typeof u.lat === "number" && typeof u.lng === "number") {
+          map.setView([u.lat, u.lng], 16);
+          markers.get(id)?.openPopup();
+        }
+        startTrail(id);
+        renderUnits();
+      }
+
+      function renderUnits() {
+        const list = filterCode === "ALL" ? units : units.filter((u) => u.status === filterCode);
+        document.getElementById("cnt-all").textContent = String(units.length);
+        document.getElementById("cnt-int").textContent = String(units.filter((u) => u.status === "INTERVENTION").length);
+
+        const prev = mUnitSel.value;
+        mUnitSel.innerHTML = '<option value="">Unité (optionnel)</option>';
+        units.forEach((u) => {
+          const o = document.createElement("option");
+          o.value = u.id;
+          o.textContent = u.id;
+          mUnitSel.appendChild(o);
+        });
+        if (prev) mUnitSel.value = prev;
+
+        if (list.length === 0) {
+          unitsBox.innerHTML = '<p style="color:#94a3b8;font-size:12px;">Aucune unité dans <code>live_positions</code>.</p>';
+          return;
+        }
+
+        unitsBox.innerHTML = "";
+        list.forEach((u) => {
+          const div = document.createElement("div");
+          div.className = "card" + (u.id === selectedId ? " selected" : "");
+          const eq = u.equipment.length
+            ? '<div class="tags">' + u.equipment.map((e) => '<span class="tag">' + esc(e) + "</span>").join("") + "</div>"
+            : "";
+          div.innerHTML = '<div class="card-head"><strong>' + esc(u.id) + '</strong><span class="badge st-' + u.status + '">' + esc(u.label) + '</span></div><div class="meta"><span>' + u.speed.toFixed(1) + ' km/h</span><span>' + (u.tracking ? "Actif" : "Arrêté") + "</span></div>" + eq;
+          div.addEventListener("click", () => pickUnit(u.id, true));
+          unitsBox.appendChild(div);
+        });
+      }
+
+      onSnapshot(collection(db, "live_positions"), (snap) => {
+        statusTxt.textContent = "En ligne";
+        statusTxt.style.color = "#4ade80";
+        const next = [];
+        const seen = new Set();
+        const bounds = [];
+
+        snap.forEach((docSnap) => {
+          const d = docSnap.data() || {};
+          const id = String(d.unitId || docSnap.id);
+          const st = normStatus(d.operationalStatus);
+          const label = String(d.operationalStatusLabel || STATUS_LABELS[st]);
+          const equipment = Array.isArray(d.equipment) ? d.equipment : [];
+          const lat = typeof d.latitude === "number" ? d.latitude : null;
+          const lng = typeof d.longitude === "number" ? d.longitude : null;
+          const speed = typeof d.speedKmh === "number" ? d.speedKmh : 0;
+          const tracking = Boolean(d.isTracking);
+
+          seen.add(id);
+          next.push({ id, status: st, label, equipment, lat, lng, speed, tracking });
+
+          if (lat !== null && lng !== null && map && typeof L !== "undefined") {
+            bounds.push([lat, lng]);
+            const pop = '<div style="color:#0f172a;font-size:12px;"><strong>' + esc(id) + '</strong><br/>Statut : ' + esc(label) + '<br/>Vitesse : ' + speed.toFixed(1) + ' km/h<br/>Matériel : ' + (equipment.length ? esc(equipment.join(", ")) : "Aucun") + "</div>";
+            const icon = makeIcon(id, st, label);
+            if (markers.has(id)) {
+              const m = markers.get(id);
+              m.setLatLng([lat, lng]);
+              m.setIcon(icon);
+              m.setPopupContent(pop);
+            } else {
+              const m = L.marker([lat, lng], { icon }).addTo(map).bindPopup(pop).on("click", () => pickUnit(id, false));
+              markers.set(id, m);
+            }
+          } else if (markers.has(id) && map) {
+            map.removeLayer(markers.get(id));
+            markers.delete(id);
+          }
+        });
+
+        if (map) {
+          markers.forEach((m, id) => {
+            if (!seen.has(id)) { map.removeLayer(m); markers.delete(id); }
+          });
+        }
+
+        units = next;
+        renderUnits();
+        if (!fittedOnce && bounds.length > 0 && map) {
+          fittedOnce = true;
+          map.fitBounds(bounds, { padding: [36, 36], maxZoom: 15 });
+        }
+      }, (err) => {
+        statusTxt.textContent = "Erreur";
+        statusTxt.style.color = "#f87171";
+        unitsBox.innerHTML = '<p style="color:#f87171;font-size:12px;">Firestore : ' + esc(err.message || err.code) + "</p>";
       });
-    }
 
-    function stopTrail() {
-      if (unsubTrail) { unsubTrail(); unsubTrail = null; }
-      if (trailLine && map) { map.removeLayer(trailLine); trailLine = null; }
-    }
+      onSnapshot(query(collection(db, "missions"), orderBy("createdAt", "desc"), limit(30)), (snap) => {
+        missionsBox.innerHTML = "";
+        snap.forEach((d) => {
+          const m = d.data() || {};
+          const el = document.createElement("div");
+          el.className = "item";
+          el.innerHTML = '<strong>' + esc(m.title || "Mission") + '</strong><div style="color:#94a3b8;margin-top:2px;">Unité : ' + esc(m.unitId || "Non affectée") + "</div>" + (m.notes ? '<div style="margin-top:3px;">' + esc(m.notes) + "</div>" : "");
+          missionsBox.appendChild(el);
+        });
+      }, () => {});
 
-    function startTrail(id) {
-      stopTrail();
-      if (!trailOn || !id || !map) return;
-      const qHist = query(collection(db, "live_positions", id, "history"), orderBy("updatedAt", "desc"), limit(50));
-      unsubTrail = onSnapshot(qHist, (snap) => {
-        const pts = [];
+      onSnapshot(query(collection(db, "mci_logs"), orderBy("createdAt", "desc"), limit(50)), (snap) => {
+        mciBox.innerHTML = "";
         snap.forEach((d) => {
           const x = d.data() || {};
-          if (typeof x.latitude === "number" && typeof x.longitude === "number") {
-            pts.push([x.latitude, x.longitude]);
-          }
+          const dt = x.createdAt?.toDate ? x.createdAt.toDate().toLocaleTimeString("fr-FR") : "--:--:--";
+          const el = document.createElement("div");
+          el.className = "item";
+          el.innerHTML = '<div class="time">' + esc(dt) + (x.unitId ? " · " + esc(x.unitId) : "") + "</div><div>" + esc(x.message || "") + "</div>";
+          mciBox.appendChild(el);
         });
-        pts.reverse();
-        if (trailLine) map.removeLayer(trailLine);
-        if (pts.length > 1) {
-          trailLine = L.polyline(pts, { color: "#38bdf8", weight: 3, dashArray: "6,6" }).addTo(map);
-        }
       }, () => {});
-    }
 
-    function pickUnit(id, center) {
-      selectedId = id;
-      document.getElementById("sel-txt").textContent = id || "Aucune";
-      const u = units.find((item) => item.id === id);
-      if (u && center && map && typeof u.lat === "number" && typeof u.lng === "number") {
-        map.setView([u.lat, u.lng], 16);
-        markers.get(id)?.openPopup();
-      }
-      startTrail(id);
-      renderUnits();
-    }
-
-    function renderUnits() {
-      const list = filterCode === "ALL" ? units : units.filter((u) => u.status === filterCode);
-      document.getElementById("cnt-all").textContent = String(units.length);
-      document.getElementById("cnt-int").textContent = String(units.filter((u) => u.status === "INTERVENTION").length);
-
-      const prev = mUnitSel.value;
-      mUnitSel.innerHTML = '<option value="">Unité (optionnel)</option>';
-      units.forEach((u) => {
-        const o = document.createElement("option");
-        o.value = u.id;
-        o.textContent = u.id;
-        mUnitSel.appendChild(o);
-      });
-      if (prev) mUnitSel.value = prev;
-
-      if (list.length === 0) {
-        unitsBox.innerHTML = '<p style="color:#94a3b8;font-size:12px;">Aucune unité pour ce filtre.</p>';
-        return;
-      }
-
-      unitsBox.innerHTML = "";
-      list.forEach((u) => {
-        const div = document.createElement("div");
-        div.className = "card" + (u.id === selectedId ? " selected" : "");
-        const eq = u.equipment.length
-          ? '<div class="tags">' + u.equipment.map((e) => '<span class="tag">' + esc(e) + "</span>").join("") + "</div>"
-          : "";
-        div.innerHTML = '<div class="card-head"><strong>' + esc(u.id) + '</strong><span class="badge st-' + u.status + '">' + esc(u.label) + '</span></div><div class="meta"><span>' + u.speed.toFixed(1) + ' km/h</span><span>' + (u.tracking ? "Actif" : "Arrêté") + "</span></div>" + eq;
-        div.addEventListener("click", () => pickUnit(u.id, true));
-        unitsBox.appendChild(div);
-      });
-    }
-
-    onSnapshot(collection(db, "live_positions"), (snap) => {
-      statusTxt.textContent = "En ligne";
-      statusTxt.style.color = "#4ade80";
-      const next = [];
-      const seen = new Set();
-      const bounds = [];
-
-      snap.forEach((docSnap) => {
-        const d = docSnap.data() || {};
-        const id = String(d.unitId || docSnap.id);
-        const st = normStatus(d.operationalStatus);
-        const label = String(d.operationalStatusLabel || STATUS_LABELS[st]);
-        const equipment = Array.isArray(d.equipment) ? d.equipment : [];
-        const lat = typeof d.latitude === "number" ? d.latitude : null;
-        const lng = typeof d.longitude === "number" ? d.longitude : null;
-        const speed = typeof d.speedKmh === "number" ? d.speedKmh : 0;
-        const tracking = Boolean(d.isTracking);
-
-        seen.add(id);
-        next.push({ id, status: st, label, equipment, lat, lng, speed, tracking });
-
-        if (lat !== null && lng !== null && map && typeof L !== "undefined") {
-          bounds.push([lat, lng]);
-          const pop = '<div style="color:#0f172a;font-size:12px;"><strong>' + esc(id) + '</strong><br/>Statut : ' + esc(label) + '<br/>Vitesse : ' + speed.toFixed(1) + ' km/h<br/>Matériel : ' + (equipment.length ? esc(equipment.join(", ")) : "Aucun") + "</div>";
-          const icon = makeIcon(id, st, label);
-          if (markers.has(id)) {
-            const m = markers.get(id);
-            m.setLatLng([lat, lng]);
-            m.setIcon(icon);
-            m.setPopupContent(pop);
-          } else {
-            const m = L.marker([lat, lng], { icon }).addTo(map).bindPopup(pop).on("click", () => pickUnit(id, false));
-            markers.set(id, m);
-          }
-        } else if (markers.has(id) && map) {
-          map.removeLayer(markers.get(id));
-          markers.delete(id);
-        }
+      document.getElementById("f-dispatch").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const title = document.getElementById("m-title").value.trim();
+        const unitId = mUnitSel.value.trim();
+        const notes = document.getElementById("m-notes").value.trim();
+        if (!title) return;
+        await addDoc(collection(db, "missions"), { title, unitId, notes, status: "OUVERTE", createdAt: serverTimestamp() });
+        await addDoc(collection(db, "mci_logs"), { unitId, message: "Dispatch : " + title + (unitId ? " -> " + unitId : "") + (notes ? " (" + notes + ")" : ""), createdAt: serverTimestamp() });
+        e.target.reset();
       });
 
-      if (map) {
-        markers.forEach((m, id) => {
-          if (!seen.has(id)) { map.removeLayer(m); markers.delete(id); }
-        });
-      }
+      document.getElementById("f-mci").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const message = document.getElementById("c-msg").value.trim();
+        if (!message) return;
+        await addDoc(collection(db, "mci_logs"), { unitId: selectedId || "", message, createdAt: serverTimestamp() });
+        e.target.reset();
+      });
 
-      units = next;
-      renderUnits();
-      if (!fittedOnce && bounds.length > 0 && map) {
-        fittedOnce = true;
-        map.fitBounds(bounds, { padding: [36, 36], maxZoom: 15 });
-      }
-    }, (err) => {
+      document.getElementById("filters").addEventListener("click", (e) => {
+        const b = e.target.closest(".fbtn");
+        if (!b) return;
+        filterCode = b.dataset.f;
+        document.querySelectorAll(".fbtn").forEach((x) => x.classList.remove("active"));
+        b.classList.add("active");
+        renderUnits();
+      });
+
+      document.getElementById("btn-trail").addEventListener("click", (e) => {
+        trailOn = !trailOn;
+        e.target.textContent = "Trajet : " + (trailOn ? "ON" : "OFF");
+        startTrail(selectedId);
+      });
+
+      document.getElementById("btn-fit").addEventListener("click", () => {
+        if (!map) return;
+        const pts = units.filter((u) => typeof u.lat === "number" && typeof u.lng === "number").map((u) => [u.lat, u.lng]);
+        if (pts.length > 0) map.fitBounds(pts, { padding: [36, 36], maxZoom: 15 });
+      });
+    } catch (e) {
       statusTxt.textContent = "Erreur";
       statusTxt.style.color = "#f87171";
-      unitsBox.innerHTML = '<p style="color:#f87171;font-size:12px;">Firestore : ' + esc(err.message || err.code) + "</p>";
-    });
-
-    onSnapshot(query(collection(db, "missions"), orderBy("createdAt", "desc"), limit(30)), (snap) => {
-      missionsBox.innerHTML = "";
-      snap.forEach((d) => {
-        const m = d.data() || {};
-        const el = document.createElement("div");
-        el.className = "item";
-        el.innerHTML = '<strong>' + esc(m.title || "Mission") + '</strong><div style="color:#94a3b8;margin-top:2px;">Unité : ' + esc(m.unitId || "Non affectée") + "</div>" + (m.notes ? '<div style="margin-top:3px;">' + esc(m.notes) + "</div>" : "");
-        missionsBox.appendChild(el);
-      });
-    }, () => {});
-
-    onSnapshot(query(collection(db, "mci_logs"), orderBy("createdAt", "desc"), limit(50)), (snap) => {
-      mciBox.innerHTML = "";
-      snap.forEach((d) => {
-        const x = d.data() || {};
-        const dt = x.createdAt?.toDate ? x.createdAt.toDate().toLocaleTimeString("fr-FR") : "--:--:--";
-        const el = document.createElement("div");
-        el.className = "item";
-        el.innerHTML = '<div class="time">' + esc(dt) + (x.unitId ? " · " + esc(x.unitId) : "") + "</div><div>" + esc(x.message || "") + "</div>";
-        mciBox.appendChild(el);
-      });
-    }, () => {});
-
-    document.getElementById("f-dispatch").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const title = document.getElementById("m-title").value.trim();
-      const unitId = mUnitSel.value.trim();
-      const notes = document.getElementById("m-notes").value.trim();
-      if (!title) return;
-      await addDoc(collection(db, "missions"), { title, unitId, notes, status: "OUVERTE", createdAt: serverTimestamp() });
-      await addDoc(collection(db, "mci_logs"), { unitId, message: "Dispatch : " + title + (unitId ? " -> " + unitId : "") + (notes ? " (" + notes + ")" : ""), createdAt: serverTimestamp() });
-      e.target.reset();
-    });
-
-    document.getElementById("f-mci").addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const message = document.getElementById("c-msg").value.trim();
-      if (!message) return;
-      await addDoc(collection(db, "mci_logs"), { unitId: selectedId || "", message, createdAt: serverTimestamp() });
-      e.target.reset();
-    });
-
-    document.getElementById("filters").addEventListener("click", (e) => {
-      const b = e.target.closest(".fbtn");
-      if (!b) return;
-      filterCode = b.dataset.f;
-      document.querySelectorAll(".fbtn").forEach((x) => x.classList.remove("active"));
-      b.classList.add("active");
-      renderUnits();
-    });
-
-    document.getElementById("btn-trail").addEventListener("click", (e) => {
-      trailOn = !trailOn;
-      e.target.textContent = "Trajet : " + (trailOn ? "ON" : "OFF");
-      startTrail(selectedId);
-    });
-
-    document.getElementById("btn-fit").addEventListener("click", () => {
-      if (!map) return;
-      const pts = units.filter((u) => typeof u.lat === "number" && typeof u.lng === "number").map((u) => [u.lat, u.lng]);
-      if (pts.length > 0) map.fitBounds(pts, { padding: [36, 36], maxZoom: 15 });
-    });
+      unitsBox.innerHTML = '<p style="color:#f87171;font-size:12px;">Module Firebase : ' + String(e?.message || e) + "</p>";
+    }
   </script>
 </body>
 </html>
