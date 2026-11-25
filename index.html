@@ -44,7 +44,7 @@
     .stats strong { color: #f8fafc; }
     .main-layout { flex: 1; display: flex; min-height: 0; width: 100%; }
     .col-left {
-      width: 320px;
+      width: 330px;
       background: #1e293b;
       border-right: 1px solid #334155;
       display: flex;
@@ -54,7 +54,7 @@
     .col-map { flex: 1; position: relative; background: #1e293b; min-width: 0; }
     #map { width: 100%; height: 100%; }
     .col-right {
-      width: 340px;
+      width: 275px;
       background: #1e293b;
       border-left: 1px solid #334155;
       display: flex;
@@ -94,15 +94,39 @@
       font-weight: 700;
     }
     .scroll { flex: 1; overflow-y: auto; padding: 10px; }
+
     .card {
       background: #162032;
       border: 1px solid #334155;
+      border-left-width: 5px;
       border-radius: 8px;
       padding: 10px;
       margin-bottom: 8px;
       cursor: pointer;
+      transition: transform 0.12s ease, box-shadow 0.12s ease;
     }
-    .card.selected { border-color: #38bdf8; }
+    .card:hover { transform: translateX(2px); }
+    .card.hi-PATROUILLE {
+      border-left-color: #3b82f6;
+      background: linear-gradient(90deg, rgba(37, 99, 235, 0.22) 0%, #162032 65%);
+    }
+    .card.hi-INTERVENTION {
+      border-left-color: #ef4444;
+      background: linear-gradient(90deg, rgba(220, 38, 38, 0.26) 0%, #162032 65%);
+    }
+    .card.hi-DISPONIBLE {
+      border-left-color: #22c55e;
+      background: linear-gradient(90deg, rgba(22, 163, 74, 0.22) 0%, #162032 65%);
+    }
+    .card.hi-PAUSE {
+      border-left-color: #f59e0b;
+      background: linear-gradient(90deg, rgba(217, 119, 6, 0.24) 0%, #162032 65%);
+    }
+    .card.selected {
+      border-color: #38bdf8;
+      box-shadow: 0 0 0 1px #38bdf8, 0 4px 12px rgba(0, 0, 0, 0.35);
+    }
+
     .card-head { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
     .badge {
       font-size: 11px;
@@ -110,14 +134,15 @@
       padding: 2px 7px;
       border-radius: 999px;
       color: #fff;
+      white-space: nowrap;
     }
     .st-PATROUILLE { background: #2563eb; }
     .st-INTERVENTION { background: #dc2626; }
     .st-DISPONIBLE { background: #16a34a; }
     .st-PAUSE { background: #d97706; }
-    .meta { margin-top: 5px; font-size: 12px; color: #94a3b8; display: flex; justify-content: space-between; }
+    .meta { margin-top: 5px; font-size: 12px; color: #cbd5e1; display: flex; justify-content: space-between; }
     .tags { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; }
-    .tag { font-size: 11px; padding: 2px 6px; border-radius: 5px; background: rgba(148,163,184,0.15); }
+    .tag { font-size: 11px; padding: 2px 6px; border-radius: 5px; background: rgba(15, 23, 42, 0.65); border: 1px solid #334155; }
     .toolbar {
       position: absolute;
       top: 10px;
@@ -144,25 +169,25 @@
     .tabs { display: flex; background: #162032; border-bottom: 1px solid #334155; }
     .tbtn {
       flex: 1;
-      padding: 9px;
+      padding: 9px 6px;
       background: none;
       border: none;
       border-bottom: 2px solid transparent;
       color: #94a3b8;
       font-weight: 700;
-      font-size: 12px;
+      font-size: 11px;
       cursor: pointer;
     }
     .tbtn.active { color: #38bdf8; border-bottom-color: #38bdf8; }
     .panel { display: none; flex: 1; flex-direction: column; min-height: 0; }
     .panel.active { display: flex; }
     form.box {
-      padding: 10px;
+      padding: 8px;
       background: #162032;
       border-bottom: 1px solid #334155;
       display: flex;
       flex-direction: column;
-      gap: 7px;
+      gap: 6px;
     }
     input, select, textarea {
       width: 100%;
@@ -170,19 +195,47 @@
       color: #f8fafc;
       border: 1px solid #334155;
       border-radius: 6px;
-      padding: 7px 9px;
+      padding: 6px 8px;
       font-size: 12px;
       font-family: inherit;
+    }
+    .mci-filters {
+      display: flex;
+      gap: 4px;
+      padding: 6px 8px;
+      background: #162032;
+      border-bottom: 1px solid #334155;
+    }
+    .mci-fbtn {
+      flex: 1;
+      padding: 4px 4px;
+      font-size: 10px;
+      border-radius: 6px;
+      border: 1px solid #334155;
+      background: #1e293b;
+      color: #cbd5e1;
+      cursor: pointer;
+    }
+    .mci-fbtn.active {
+      background: #38bdf8;
+      color: #082f49;
+      border-color: #38bdf8;
+      font-weight: 700;
     }
     .item {
       background: #162032;
       border: 1px solid #334155;
+      border-left: 3px solid #334155;
       border-radius: 7px;
-      padding: 8px 10px;
-      margin-bottom: 7px;
-      font-size: 12px;
+      padding: 7px 9px;
+      margin-bottom: 6px;
+      font-size: 11px;
     }
-    .time { color: #38bdf8; font-family: monospace; font-size: 11px; margin-bottom: 2px; }
+    .item.status-log {
+      border-left-color: #f59e0b;
+      background: rgba(217, 119, 6, 0.12);
+    }
+    .time { color: #38bdf8; font-family: monospace; font-size: 10px; margin-bottom: 2px; }
     .marker-wrap { position: relative; width: 20px; height: 20px; }
     .marker-dot {
       width: 20px; height: 20px; border-radius: 50%;
@@ -249,6 +302,11 @@
         <div class="scroll" id="missions-box"></div>
       </div>
       <div class="panel" id="p-mci">
+        <div class="mci-filters" id="mci-filters">
+          <button class="mci-fbtn active" data-mf="ALL">Tout</button>
+          <button class="mci-fbtn" data-mf="STATUS">Statuts</button>
+          <button class="mci-fbtn" data-mf="DISPATCH">Dispatch</button>
+        </div>
         <form class="box" id="f-mci">
           <input type="text" id="c-msg" placeholder="Mention main-courante..." required />
           <button type="submit" class="btn">Enregistrer MCI</button>
@@ -365,8 +423,12 @@
       const mUnitSel = document.getElementById("m-unit");
 
       const markers = new Map();
+      const lastKnownStatus = new Map();
+      let initialUnitsLoaded = false;
       let units = [];
+      let mciEntries = [];
       let filterCode = "ALL";
+      let mciFilter = "ALL";
       let selectedId = null;
       let trailOn = false;
       let trailLine = null;
@@ -503,7 +565,7 @@
 
         list.forEach((u) => {
           const div = document.createElement("div");
-          div.className = `card${u.id === selectedId ? " selected" : ""}`;
+          div.className = `card hi-${u.status}${u.id === selectedId ? " selected" : ""}`;
 
           const head = document.createElement("div");
           head.className = "card-head";
@@ -549,6 +611,46 @@
         });
       }
 
+      function renderMci() {
+        mciBox.textContent = "";
+        const filtered = mciEntries.filter((x) => {
+          const msg = String(x.message || "");
+          const isStatus = x.type === "STATUS_CHANGE" || msg.startsWith("Statut :");
+          const isDispatch = x.type === "DISPATCH" || msg.startsWith("Dispatch :");
+          if (mciFilter === "STATUS") return isStatus;
+          if (mciFilter === "DISPATCH") return isDispatch;
+          return true;
+        });
+
+        if (filtered.length === 0) {
+          const empty = document.createElement("p");
+          empty.style.color = "#94a3b8";
+          empty.style.fontSize = "11px";
+          empty.textContent = "Aucune mention pour ce filtre.";
+          mciBox.appendChild(empty);
+          return;
+        }
+
+        filtered.forEach((x) => {
+          const dt = x.createdAt?.toDate ? x.createdAt.toDate().toLocaleTimeString("fr-FR") : "--:--:--";
+          const msg = String(x.message || "");
+          const isStatus = x.type === "STATUS_CHANGE" || msg.startsWith("Statut :");
+          const el = document.createElement("div");
+          el.className = isStatus ? "item status-log" : "item";
+
+          const timeDiv = document.createElement("div");
+          timeDiv.className = "time";
+          timeDiv.textContent = x.unitId ? `${dt} · ${x.unitId}` : dt;
+
+          const msgDiv = document.createElement("div");
+          msgDiv.textContent = msg;
+
+          el.appendChild(timeDiv);
+          el.appendChild(msgDiv);
+          mciBox.appendChild(el);
+        });
+      }
+
       onSnapshot(collection(db, "live_positions"), (snap) => {
         statusTxt.textContent = "En ligne";
         statusTxt.style.color = "#4ade80";
@@ -566,6 +668,19 @@
           const lng = typeof d.longitude === "number" ? d.longitude : null;
           const speed = typeof d.speedKmh === "number" ? d.speedKmh : 0;
           const tracking = Boolean(d.isTracking);
+
+          const prevState = lastKnownStatus.get(id);
+          if (initialUnitsLoaded && prevState && prevState.status !== st) {
+            addDoc(collection(db, "mci_logs"), {
+              unitId: id,
+              type: "STATUS_CHANGE",
+              previousStatus: prevState.status,
+              newStatus: st,
+              message: `Statut : ${prevState.label} -> ${label}`,
+              createdAt: serverTimestamp()
+            }).catch((err) => console.warn("MCI status log:", err));
+          }
+          lastKnownStatus.set(id, { status: st, label });
 
           seen.add(id);
           next.push({ id, status: st, label, equipment, lat, lng, speed, tracking });
@@ -588,6 +703,8 @@
             markers.delete(id);
           }
         });
+
+        initialUnitsLoaded = true;
 
         if (map) {
           markers.forEach((m, id) => {
@@ -631,25 +748,13 @@
         });
       }, (err) => console.warn("missions:", err));
 
-      onSnapshot(query(collection(db, "mci_logs"), orderBy("createdAt", "desc"), limit(50)), (snap) => {
-        mciBox.textContent = "";
+      onSnapshot(query(collection(db, "mci_logs"), orderBy("createdAt", "desc"), limit(80)), (snap) => {
+        const list = [];
         snap.forEach((d) => {
-          const x = d.data() || {};
-          const dt = x.createdAt?.toDate ? x.createdAt.toDate().toLocaleTimeString("fr-FR") : "--:--:--";
-          const el = document.createElement("div");
-          el.className = "item";
-
-          const timeDiv = document.createElement("div");
-          timeDiv.className = "time";
-          timeDiv.textContent = x.unitId ? `${dt} · ${x.unitId}` : dt;
-
-          const msgDiv = document.createElement("div");
-          msgDiv.textContent = x.message || "";
-
-          el.appendChild(timeDiv);
-          el.appendChild(msgDiv);
-          mciBox.appendChild(el);
+          list.push(d.data() || {});
         });
+        mciEntries = list;
+        renderMci();
       }, (err) => console.warn("mci_logs:", err));
 
       document.getElementById("f-dispatch").addEventListener("submit", async (e) => {
@@ -661,6 +766,7 @@
         await addDoc(collection(db, "missions"), { title, unitId, notes, status: "OUVERTE", createdAt: serverTimestamp() });
         await addDoc(collection(db, "mci_logs"), {
           unitId,
+          type: "DISPATCH",
           message: `Dispatch : ${title}${unitId ? ` -> ${unitId}` : ""}${notes ? ` (${notes})` : ""}`,
           createdAt: serverTimestamp()
         });
@@ -671,7 +777,12 @@
         e.preventDefault();
         const message = document.getElementById("c-msg").value.trim();
         if (!message) return;
-        await addDoc(collection(db, "mci_logs"), { unitId: selectedId || "", message, createdAt: serverTimestamp() });
+        await addDoc(collection(db, "mci_logs"), {
+          unitId: selectedId || "",
+          type: "MANUAL",
+          message,
+          createdAt: serverTimestamp()
+        });
         e.target.reset();
       });
 
@@ -682,6 +793,15 @@
         document.querySelectorAll(".fbtn").forEach((x) => x.classList.remove("active"));
         b.classList.add("active");
         renderUnits();
+      });
+
+      document.getElementById("mci-filters").addEventListener("click", (e) => {
+        const b = e.target.closest(".mci-fbtn");
+        if (!b) return;
+        mciFilter = b.dataset.mf;
+        document.querySelectorAll(".mci-fbtn").forEach((x) => x.classList.remove("active"));
+        b.classList.add("active");
+        renderMci();
       });
 
       document.getElementById("btn-trail").addEventListener("click", (e) => {
