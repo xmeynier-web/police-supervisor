@@ -42,12 +42,7 @@
     }
     .stats { display: flex; gap: 14px; font-size: 13px; color: #94a3b8; }
     .stats strong { color: #f8fafc; }
-    .main-layout {
-      flex: 1;
-      display: flex;
-      min-height: 0;
-      width: 100%;
-    }
+    .main-layout { flex: 1; display: flex; min-height: 0; width: 100%; }
     .col-left {
       width: 320px;
       background: #1e293b;
@@ -56,12 +51,7 @@
       flex-direction: column;
       flex-shrink: 0;
     }
-    .col-map {
-      flex: 1;
-      position: relative;
-      background: #1e293b;
-      min-width: 0;
-    }
+    .col-map { flex: 1; position: relative; background: #1e293b; min-width: 0; }
     #map { width: 100%; height: 100%; }
     .col-right {
       width: 340px;
@@ -103,11 +93,7 @@
       border-color: #38bdf8;
       font-weight: 700;
     }
-    .scroll {
-      flex: 1;
-      overflow-y: auto;
-      padding: 10px;
-    }
+    .scroll { flex: 1; overflow-y: auto; padding: 10px; }
     .card {
       background: #162032;
       border: 1px solid #334155;
@@ -237,9 +223,7 @@
         <button class="fbtn" data-f="DISPONIBLE">Disponible</button>
         <button class="fbtn" data-f="PAUSE">Pause</button>
       </div>
-      <div class="scroll" id="units-box">
-        <p style="color:#94a3b8;font-size:12px;">Connexion Firestore en cours...</p>
-      </div>
+      <div class="scroll" id="units-box"></div>
     </div>
 
     <div class="col-map">
@@ -309,8 +293,12 @@
       if (st && st.textContent === "Chargement...") {
         st.textContent = "Timeout / Bloqué";
         st.style.color = "#f87171";
-        if (box) {
-          box.innerHTML = "<p style='color:#f87171;font-size:12px;'>Aucune réponse de Firestore après 5s. Vérifiez la console (F12) ou les règles Firestore.</p>";
+        if (box && !box.hasChildNodes()) {
+          var p = document.createElement("p");
+          p.style.color = "#f87171";
+          p.style.fontSize = "12px";
+          p.textContent = "Aucune réponse Firestore après 5s. Vérifiez la console (F12) et les règles Firestore.";
+          box.appendChild(p);
         }
       }
     }, 5000);
@@ -326,7 +314,12 @@
         statusTxt.style.color = "#f87171";
       }
       if (unitsBox) {
-        unitsBox.innerHTML = "<p style='color:#f87171;font-size:12px;'>" + label + " : " + String(e?.message || e?.code || e) + "</p>";
+        unitsBox.textContent = "";
+        const p = document.createElement("p");
+        p.style.color = "#f87171";
+        p.style.fontSize = "12px";
+        p.textContent = `${label} : ${String(e?.message || e?.code || e)}`;
+        unitsBox.appendChild(p);
       }
     }
 
@@ -380,14 +373,6 @@
       let unsubTrail = null;
       let fittedOnce = false;
 
-      function esc(v) {
-        return String(v ?? "")
-          .replace(/&/g, "&")
-          .replace(/</g, "<")
-          .replace(/>/g, ">")
-          .replace(/"/g, """);
-      }
-
       function normStatus(c) {
         const u = String(c || "PATROUILLE").toUpperCase();
         return Object.prototype.hasOwnProperty.call(STATUS_LABELS, u) ? u : "PATROUILLE";
@@ -395,13 +380,58 @@
 
       function makeIcon(id, code, label) {
         const st = normStatus(code);
+        const wrap = document.createElement("div");
+        wrap.className = "marker-wrap";
+
+        const dot = document.createElement("div");
+        dot.className = `marker-dot st-${st}`;
+
+        const tag = document.createElement("div");
+        tag.className = "marker-tag";
+        tag.textContent = String(id ?? "");
+
+        const sub = document.createElement("span");
+        sub.className = "marker-sub";
+        sub.textContent = String(label ?? "");
+
+        tag.appendChild(sub);
+        wrap.appendChild(dot);
+        wrap.appendChild(tag);
+
         return L.divIcon({
           className: "",
-          html: "<div class='marker-wrap'><div class='marker-dot st-" + st + "'></div><div class='marker-tag'>" + esc(id) + "<span class='marker-sub'>" + esc(label) + "</span></div></div>",
+          html: wrap.outerHTML,
           iconSize: [20, 20],
           iconAnchor: [10, 10],
           popupAnchor: [0, -12]
         });
+      }
+
+      function makePopupNode(id, label, speed, equipment) {
+        const container = document.createElement("div");
+        container.style.color = "#0f172a";
+        container.style.fontSize = "12px";
+
+        const title = document.createElement("strong");
+        title.textContent = String(id ?? "");
+        container.appendChild(title);
+        container.appendChild(document.createElement("br"));
+
+        const l1 = document.createElement("span");
+        l1.textContent = `Statut : ${label}`;
+        container.appendChild(l1);
+        container.appendChild(document.createElement("br"));
+
+        const l2 = document.createElement("span");
+        l2.textContent = `Vitesse : ${speed.toFixed(1)} km/h`;
+        container.appendChild(l2);
+        container.appendChild(document.createElement("br"));
+
+        const l3 = document.createElement("span");
+        l3.textContent = `Matériel : ${equipment.length ? equipment.join(", ") : "Aucun"}`;
+        container.appendChild(l3);
+
+        return container;
       }
 
       function stopTrail() {
@@ -447,7 +477,12 @@
         document.getElementById("cnt-int").textContent = String(units.filter((u) => u.status === "INTERVENTION").length);
 
         const prev = mUnitSel.value;
-        mUnitSel.innerHTML = "<option value=''>Unité (optionnel)</option>";
+        mUnitSel.textContent = "";
+        const defOpt = document.createElement("option");
+        defOpt.value = "";
+        defOpt.textContent = "Unité (optionnel)";
+        mUnitSel.appendChild(defOpt);
+
         units.forEach((u) => {
           const o = document.createElement("option");
           o.value = u.id;
@@ -456,19 +491,59 @@
         });
         if (prev) mUnitSel.value = prev;
 
+        unitsBox.textContent = "";
         if (list.length === 0) {
-          unitsBox.innerHTML = "<p style='color:#94a3b8;font-size:12px;'>Aucune unité dans <code>live_positions</code>.</p>";
+          const empty = document.createElement("p");
+          empty.style.color = "#94a3b8";
+          empty.style.fontSize = "12px";
+          empty.textContent = "Aucune unité dans live_positions pour ce filtre.";
+          unitsBox.appendChild(empty);
           return;
         }
 
-        unitsBox.innerHTML = "";
         list.forEach((u) => {
           const div = document.createElement("div");
-          div.className = "card" + (u.id === selectedId ? " selected" : "");
-          const eq = u.equipment.length
-            ? "<div class='tags'>" + u.equipment.map((e) => "<span class='tag'>" + esc(e) + "</span>").join("") + "</div>"
-            : "";
-          div.innerHTML = "<div class='card-head'><strong>" + esc(u.id) + "</strong><span class='badge st-" + u.status + "'>" + esc(u.label) + "</span></div><div class='meta'><span>" + u.speed.toFixed(1) + " km/h</span><span>" + (u.tracking ? "Actif" : "Arrêté") + "</span></div>" + eq;
+          div.className = `card${u.id === selectedId ? " selected" : ""}`;
+
+          const head = document.createElement("div");
+          head.className = "card-head";
+
+          const strong = document.createElement("strong");
+          strong.textContent = u.id;
+
+          const badge = document.createElement("span");
+          badge.className = `badge st-${u.status}`;
+          badge.textContent = u.label;
+
+          head.appendChild(strong);
+          head.appendChild(badge);
+          div.appendChild(head);
+
+          const meta = document.createElement("div");
+          meta.className = "meta";
+
+          const sp = document.createElement("span");
+          sp.textContent = `${u.speed.toFixed(1)} km/h`;
+
+          const tr = document.createElement("span");
+          tr.textContent = u.tracking ? "Actif" : "Arrêté";
+
+          meta.appendChild(sp);
+          meta.appendChild(tr);
+          div.appendChild(meta);
+
+          if (u.equipment.length) {
+            const tags = document.createElement("div");
+            tags.className = "tags";
+            u.equipment.forEach((eq) => {
+              const t = document.createElement("span");
+              t.className = "tag";
+              t.textContent = String(eq);
+              tags.appendChild(t);
+            });
+            div.appendChild(tags);
+          }
+
           div.addEventListener("click", () => pickUnit(u.id, true));
           unitsBox.appendChild(div);
         });
@@ -497,15 +572,15 @@
 
           if (lat !== null && lng !== null && map && typeof L !== "undefined") {
             bounds.push([lat, lng]);
-            const pop = "<div style='color:#0f172a;font-size:12px;'><strong>" + esc(id) + "</strong><br/>Statut : " + esc(label) + "<br/>Vitesse : " + speed.toFixed(1) + " km/h<br/>Matériel : " + (equipment.length ? esc(equipment.join(", ")) : "Aucun") + "</div>";
+            const popNode = makePopupNode(id, label, speed, equipment);
             const icon = makeIcon(id, st, label);
             if (markers.has(id)) {
               const m = markers.get(id);
               m.setLatLng([lat, lng]);
               m.setIcon(icon);
-              m.setPopupContent(pop);
+              m.setPopupContent(popNode);
             } else {
-              const m = L.marker([lat, lng], { icon }).addTo(map).bindPopup(pop).on("click", () => pickUnit(id, false));
+              const m = L.marker([lat, lng], { icon }).addTo(map).bindPopup(popNode).on("click", () => pickUnit(id, false));
               markers.set(id, m);
             }
           } else if (markers.has(id) && map) {
@@ -529,27 +604,53 @@
       }, (err) => showErr("Firestore live_positions", err));
 
       onSnapshot(query(collection(db, "missions"), orderBy("createdAt", "desc"), limit(30)), (snap) => {
-        missionsBox.innerHTML = "";
+        missionsBox.textContent = "";
         snap.forEach((d) => {
           const m = d.data() || {};
           const el = document.createElement("div");
           el.className = "item";
-          el.innerHTML = "<strong>" + esc(m.title || "Mission") + "</strong><div style='color:#94a3b8;margin-top:2px;'>Unité : " + esc(m.unitId || "Non affectée") + "</div>" + (m.notes ? "<div style='margin-top:3px;'>" + esc(m.notes) + "</div>" : "");
+
+          const title = document.createElement("strong");
+          title.textContent = m.title || "Mission";
+          el.appendChild(title);
+
+          const uLine = document.createElement("div");
+          uLine.style.color = "#94a3b8";
+          uLine.style.marginTop = "2px";
+          uLine.textContent = `Unité : ${m.unitId || "Non affectée"}`;
+          el.appendChild(uLine);
+
+          if (m.notes) {
+            const nLine = document.createElement("div");
+            nLine.style.marginTop = "3px";
+            nLine.textContent = m.notes;
+            el.appendChild(nLine);
+          }
+
           missionsBox.appendChild(el);
         });
-      }, () => {});
+      }, (err) => console.warn("missions:", err));
 
       onSnapshot(query(collection(db, "mci_logs"), orderBy("createdAt", "desc"), limit(50)), (snap) => {
-        mciBox.innerHTML = "";
+        mciBox.textContent = "";
         snap.forEach((d) => {
           const x = d.data() || {};
           const dt = x.createdAt?.toDate ? x.createdAt.toDate().toLocaleTimeString("fr-FR") : "--:--:--";
           const el = document.createElement("div");
           el.className = "item";
-          el.innerHTML = "<div class='time'>" + esc(dt) + (x.unitId ? " · " + esc(x.unitId) : "") + "</div><div>" + esc(x.message || "") + "</div>";
+
+          const timeDiv = document.createElement("div");
+          timeDiv.className = "time";
+          timeDiv.textContent = x.unitId ? `${dt} · ${x.unitId}` : dt;
+
+          const msgDiv = document.createElement("div");
+          msgDiv.textContent = x.message || "";
+
+          el.appendChild(timeDiv);
+          el.appendChild(msgDiv);
           mciBox.appendChild(el);
         });
-      }, () => {});
+      }, (err) => console.warn("mci_logs:", err));
 
       document.getElementById("f-dispatch").addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -558,7 +659,11 @@
         const notes = document.getElementById("m-notes").value.trim();
         if (!title) return;
         await addDoc(collection(db, "missions"), { title, unitId, notes, status: "OUVERTE", createdAt: serverTimestamp() });
-        await addDoc(collection(db, "mci_logs"), { unitId, message: "Dispatch : " + title + (unitId ? " -> " + unitId : "") + (notes ? " (" + notes + ")" : ""), createdAt: serverTimestamp() });
+        await addDoc(collection(db, "mci_logs"), {
+          unitId,
+          message: `Dispatch : ${title}${unitId ? ` -> ${unitId}` : ""}${notes ? ` (${notes})` : ""}`,
+          createdAt: serverTimestamp()
+        });
         e.target.reset();
       });
 
@@ -581,7 +686,7 @@
 
       document.getElementById("btn-trail").addEventListener("click", (e) => {
         trailOn = !trailOn;
-        e.target.textContent = "Trajet : " + (trailOn ? "ON" : "OFF");
+        e.target.textContent = `Trajet : ${trailOn ? "ON" : "OFF"}`;
         startTrail(selectedId);
       });
 
