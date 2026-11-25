@@ -44,7 +44,7 @@
     .stats strong { color: #f8fafc; }
     .main-layout { flex: 1; display: flex; min-height: 0; width: 100%; }
     .col-left {
-      width: 265px;
+      width: 275px;
       background: #1e293b;
       border-right: 1px solid #334155;
       display: flex;
@@ -54,7 +54,7 @@
     .col-map { flex: 1; position: relative; background: #1e293b; min-width: 0; }
     #map { width: 100%; height: 100%; }
     .col-right {
-      width: 280px;
+      width: 285px;
       background: #1e293b;
       border-left: 1px solid #334155;
       display: flex;
@@ -138,12 +138,28 @@
       border-color: rgba(217, 119, 6, 0.62);
       background: linear-gradient(90deg, rgba(217, 119, 6, 0.38) 0%, rgba(217, 119, 6, 0.13) 55%, #162032 100%);
     }
+    .card.hi-FIN_DE_SERVICE {
+      border-left-color: #475569;
+      border-color: rgba(71, 85, 105, 0.68);
+      background: linear-gradient(90deg, rgba(71, 85, 105, 0.38) 0%, rgba(71, 85, 105, 0.14) 55%, #162032 100%);
+    }
     .card.selected {
       border-color: #ffffff;
       box-shadow: 0 0 0 2px #38bdf8, 0 6px 14px rgba(0, 0, 0, 0.45);
     }
 
     .card-head { display: flex; justify-content: space-between; align-items: center; gap: 4px; }
+    .unit-title-wrap { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+    .crew-badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 5px;
+      background: rgba(56, 189, 248, 0.16);
+      color: #38bdf8;
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      white-space: nowrap;
+    }
     .badge {
       font-size: 10px;
       font-weight: 700;
@@ -158,6 +174,7 @@
     .st-CONTROLE_ROUTE { background: #06b6d4; color: #082f49; }
     .st-DISPONIBLE { background: #16a34a; color: #fff; }
     .st-PAUSE { background: #d97706; color: #fff; }
+    .st-FIN_DE_SERVICE { background: #475569; color: #f8fafc; }
 
     .meta { margin-top: 5px; font-size: 11px; color: #e2e8f0; display: flex; justify-content: space-between; }
     .tags { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; }
@@ -280,6 +297,11 @@
       border-color: rgba(217, 119, 6, 0.62);
       background: linear-gradient(90deg, rgba(217, 119, 6, 0.36) 0%, #162032 80%);
     }
+    .item.mci-st-FIN_DE_SERVICE {
+      border-left-color: #475569;
+      border-color: rgba(71, 85, 105, 0.68);
+      background: linear-gradient(90deg, rgba(71, 85, 105, 0.38) 0%, #162032 80%);
+    }
     .item.ack-log {
       border-left-color: #16a34a;
       background: linear-gradient(90deg, rgba(22, 163, 74, 0.24) 0%, #162032 80%);
@@ -321,6 +343,7 @@
     </div>
     <div class="stats">
       <span>Unités : <strong id="cnt-all">0</strong></span>
+      <span>Effectif : <strong id="cnt-crew">0</strong></span>
       <span>Intervention : <strong id="cnt-int">0</strong></span>
       <span id="status-txt">Chargement...</span>
     </div>
@@ -340,6 +363,7 @@
         <button class="fbtn" data-f="CONTROLE_ROUTE">Contrôle route</button>
         <button class="fbtn" data-f="DISPONIBLE">Disponible</button>
         <button class="fbtn" data-f="PAUSE">Pause</button>
+        <button class="fbtn" data-f="FIN_DE_SERVICE">Fin de service</button>
       </div>
       <div class="scroll" id="units-box"></div>
     </div>
@@ -478,7 +502,8 @@
         SUR_LIEUX: "Sur les lieux",
         CONTROLE_ROUTE: "Contrôle route",
         DISPONIBLE: "Disponible",
-        PAUSE: "En pause"
+        PAUSE: "En pause",
+        FIN_DE_SERVICE: "Fin de service"
       };
 
       const app = initializeApp(firebaseConfig);
@@ -507,6 +532,11 @@
         return Object.prototype.hasOwnProperty.call(STATUS_LABELS, u) ? u : "PATROUILLE";
       }
 
+      function formatCrew(count) {
+        const n = Math.max(1, Number(count || 1));
+        return `${n} agent${n > 1 ? "s" : ""}`;
+      }
+
       function inferStatusFromEntry(entry) {
         if (entry.newStatus) {
           return normStatus(entry.newStatus);
@@ -515,6 +545,7 @@
         const arrowIdx = msg.lastIndexOf("->");
         if (arrowIdx !== -1) {
           const target = msg.slice(arrowIdx + 2).trim().toLowerCase();
+          if (target.includes("fin de service")) return "FIN_DE_SERVICE";
           if (target.includes("intervention")) return "INTERVENTION";
           if (target.includes("lieux")) return "SUR_LIEUX";
           if (target.includes("contrôle") || target.includes("controle") || target.includes("route")) return "CONTROLE_ROUTE";
@@ -525,7 +556,7 @@
         return null;
       }
 
-      function makeIcon(id, code, label) {
+      function makeIcon(id, code, label, crewCount) {
         const st = normStatus(code);
         const wrap = document.createElement("div");
         wrap.className = "marker-wrap";
@@ -535,7 +566,7 @@
 
         const tag = document.createElement("div");
         tag.className = "marker-tag";
-        tag.textContent = String(id ?? "");
+        tag.textContent = `${String(id ?? "")} · ${formatCrew(crewCount)}`;
 
         const sub = document.createElement("span");
         sub.className = "marker-sub";
@@ -554,7 +585,7 @@
         });
       }
 
-      function makePopupNode(id, label, speed, equipment) {
+      function makePopupNode(id, label, crewCount, speed, equipment) {
         const container = document.createElement("div");
         container.style.color = "#0f172a";
         container.style.fontSize = "12px";
@@ -562,6 +593,11 @@
         const title = document.createElement("strong");
         title.textContent = String(id ?? "");
         container.appendChild(title);
+        container.appendChild(document.createElement("br"));
+
+        const l0 = document.createElement("span");
+        l0.textContent = `Effectif : ${formatCrew(crewCount)}`;
+        container.appendChild(l0);
         container.appendChild(document.createElement("br"));
 
         const l1 = document.createElement("span");
@@ -606,6 +642,16 @@
         }, () => {});
       }
 
+      function fitAllUnits() {
+        if (!map || typeof L === "undefined") return;
+        const pts = units
+          .filter((u) => typeof u.lat === "number" && typeof u.lng === "number")
+          .map((u) => [u.lat, u.lng]);
+        if (pts.length > 0) {
+          map.fitBounds(pts, { padding: [36, 36], maxZoom: 15 });
+        }
+      }
+
       function pickUnit(id, center) {
         selectedId = id;
         document.getElementById("sel-txt").textContent = id || "Aucune";
@@ -620,7 +666,9 @@
 
       function renderUnits() {
         const list = filterCode === "ALL" ? units : units.filter((u) => u.status === filterCode);
+        const totalCrew = units.reduce((acc, u) => acc + Math.max(1, Number(u.crewCount || 1)), 0);
         document.getElementById("cnt-all").textContent = String(units.length);
+        document.getElementById("cnt-crew").textContent = String(totalCrew);
         document.getElementById("cnt-int").textContent = String(units.filter((u) => u.status === "INTERVENTION").length);
 
         const prev = mUnitSel.value;
@@ -633,7 +681,7 @@
         units.forEach((u) => {
           const o = document.createElement("option");
           o.value = u.id;
-          o.textContent = u.id;
+          o.textContent = `${u.id} (${formatCrew(u.crewCount)})`;
           mUnitSel.appendChild(o);
         });
         if (prev) mUnitSel.value = prev;
@@ -655,14 +703,24 @@
           const head = document.createElement("div");
           head.className = "card-head";
 
+          const titleWrap = document.createElement("div");
+          titleWrap.className = "unit-title-wrap";
+
           const strong = document.createElement("strong");
           strong.textContent = u.id;
+
+          const crewPill = document.createElement("span");
+          crewPill.className = "crew-badge";
+          crewPill.textContent = formatCrew(u.crewCount);
+
+          titleWrap.appendChild(strong);
+          titleWrap.appendChild(crewPill);
 
           const badge = document.createElement("span");
           badge.className = `badge st-${u.status}`;
           badge.textContent = u.label;
 
-          head.appendChild(strong);
+          head.appendChild(titleWrap);
           head.appendChild(badge);
           div.appendChild(head);
 
@@ -755,6 +813,38 @@
         });
       }
 
+      document.querySelectorAll(".fbtn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".fbtn").forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          filterCode = btn.dataset.f || "ALL";
+          renderUnits();
+        });
+      });
+
+      document.querySelectorAll(".mci-fbtn").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          document.querySelectorAll(".mci-fbtn").forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          mciFilter = btn.dataset.mf || "ALL";
+          renderMci();
+        });
+      });
+
+      document.getElementById("btn-trail").addEventListener("click", (e) => {
+        trailOn = !trailOn;
+        e.currentTarget.textContent = `Trajet : ${trailOn ? "ON" : "OFF"}`;
+        if (trailOn && selectedId) {
+          startTrail(selectedId);
+        } else {
+          stopTrail();
+        }
+      });
+
+      document.getElementById("btn-fit").addEventListener("click", () => {
+        fitAllUnits();
+      });
+
       onSnapshot(collection(db, "live_positions"), (snap) => {
         statusTxt.textContent = "En ligne";
         statusTxt.style.color = "#4ade80";
@@ -765,6 +855,7 @@
         snap.forEach((docSnap) => {
           const d = docSnap.data() || {};
           const id = String(d.unitId || docSnap.id);
+          const crewCount = Math.max(1, Number(d.crewCount || 1));
           const st = normStatus(d.operationalStatus);
           const label = String(d.operationalStatusLabel || STATUS_LABELS[st]);
           const equipment = Array.isArray(d.equipment) ? d.equipment : [];
@@ -787,12 +878,12 @@
           lastKnownStatus.set(id, { status: st, label });
 
           seen.add(id);
-          next.push({ id, status: st, label, equipment, lat, lng, speed, tracking });
+          next.push({ id, crewCount, status: st, label, equipment, lat, lng, speed, tracking });
 
           if (lat !== null && lng !== null && map && typeof L !== "undefined") {
             bounds.push([lat, lng]);
-            const popNode = makePopupNode(id, label, speed, equipment);
-            const icon = makeIcon(id, st, label);
+            const popNode = makePopupNode(id, label, crewCount, speed, equipment);
+            const icon = makeIcon(id, st, label, crewCount);
             if (markers.has(id)) {
               const m = markers.get(id);
               m.setLatLng([lat, lng]);
@@ -891,7 +982,8 @@
 
       document.getElementById("f-mci").addEventListener("submit", async (e) => {
         e.preventDefault();
-        const message = document.getElementById("c-msg").value.trim();
+        const input = document.getElementById("c-msg");
+        const message = input.value.trim();
         if (!message) return;
         await addDoc(collection(db, "mci_logs"), {
           unitId: selectedId || "",
@@ -899,40 +991,10 @@
           message,
           createdAt: serverTimestamp()
         });
-        e.target.reset();
+        input.value = "";
       });
-
-      document.getElementById("filters").addEventListener("click", (e) => {
-        const b = e.target.closest(".fbtn");
-        if (!b) return;
-        filterCode = b.dataset.f;
-        document.querySelectorAll(".fbtn").forEach((x) => x.classList.remove("active"));
-        b.classList.add("active");
-        renderUnits();
-      });
-
-      document.getElementById("mci-filters").addEventListener("click", (e) => {
-        const b = e.target.closest(".mci-fbtn");
-        if (!b) return;
-        mciFilter = b.dataset.mf;
-        document.querySelectorAll(".mci-fbtn").forEach((x) => x.classList.remove("active"));
-        b.classList.add("active");
-        renderMci();
-      });
-
-      document.getElementById("btn-trail").addEventListener("click", (e) => {
-        trailOn = !trailOn;
-        e.target.textContent = `Trajet : ${trailOn ? "ON" : "OFF"}`;
-        startTrail(selectedId);
-      });
-
-      document.getElementById("btn-fit").addEventListener("click", () => {
-        if (!map) return;
-        const pts = units.filter((u) => typeof u.lat === "number" && typeof u.lng === "number").map((u) => [u.lat, u.lng]);
-        if (pts.length > 0) map.fitBounds(pts, { padding: [36, 36], maxZoom: 15 });
-      });
-    } catch (e) {
-      showErr("Chargement SDK", e);
+    } catch (err) {
+      showErr("Initialisation CSU", err);
     }
   </script>
 </body>
