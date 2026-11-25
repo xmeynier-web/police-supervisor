@@ -306,6 +306,29 @@
       border-left-color: #16a34a;
       background: linear-gradient(90deg, rgba(22, 163, 74, 0.24) 0%, #162032 80%);
     }
+    .item.archive-log {
+      border-left-color: #d97706;
+      background: linear-gradient(90deg, rgba(217, 119, 6, 0.24) 0%, #162032 80%);
+    }
+    .mission-actions {
+      margin-top: 7px;
+      display: flex;
+      justify-content: flex-end;
+      gap: 6px;
+    }
+    .btn-archive {
+      background: #d97706;
+      color: #ffffff;
+      border: none;
+      border-radius: 5px;
+      padding: 4px 9px;
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .btn-archive:hover {
+      background: #b45309;
+    }
     .mci-head {
       display: flex;
       justify-content: space-between;
@@ -484,7 +507,7 @@
 
     try {
       const {
-        initializeApp, getFirestore, collection, addDoc, onSnapshot, query, orderBy, limit, serverTimestamp
+        initializeApp, getFirestore, collection, doc, addDoc, updateDoc, onSnapshot, query, orderBy, limit, serverTimestamp
       } = await loadFirebaseSdk();
 
       const firebaseConfig = {
@@ -779,10 +802,13 @@
           const msg = String(x.message || "");
           const isStatus = x.type === "STATUS_CHANGE" || msg.startsWith("Statut :");
           const isAck = x.type === "ACK" || msg.startsWith("Validé par ");
+          const isArchive = x.type === "ARCHIVE" || msg.startsWith("Archivage intervention :");
           const stCode = isStatus ? inferStatusFromEntry(x) : null;
 
           const el = document.createElement("div");
-          el.className = stCode ? `item mci-st-${stCode}` : (isAck ? "item ack-log" : "item");
+          el.className = stCode
+            ? `item mci-st-${stCode}`
+            : (isAck ? "item ack-log" : (isArchive ? "item archive-log" : "item"));
 
           const head = document.createElement("div");
           head.className = "mci-head";
@@ -802,6 +828,11 @@
             ackBadge.className = "mci-badge st-DISPONIBLE";
             ackBadge.textContent = "Validé";
             head.appendChild(ackBadge);
+          } else if (isArchive) {
+            const archBadge = document.createElement("span");
+            archBadge.className = "mci-badge st-PAUSE";
+            archBadge.textContent = "Archivé";
+            head.appendChild(archBadge);
           }
 
           const msgDiv = document.createElement("div");
@@ -810,6 +841,25 @@
           el.appendChild(head);
           el.appendChild(msgDiv);
           mciBox.appendChild(el);
+        });
+      }
+
+      async function archiveMission(missionId, m) {
+        const title = String(m.title || "Mission");
+        const unitLabel = m.unitId ? ` (${m.unitId})` : "";
+        const ackLabel = m.acknowledgedBy ? ` - Validé par ${m.acknowledgedBy}` : "";
+
+        await updateDoc(doc(db, "missions", missionId), {
+          archived: true,
+          status: "ARCHIVEE",
+          archivedAt: serverTimestamp()
+        });
+
+        await addDoc(collection(db, "mci_logs"), {
+          unitId: m.unitId || "",
+          type: "ARCHIVE",
+          message: `Archivage intervention : ${title}${unitLabel}${ackLabel}`,
+          createdAt: serverTimestamp()
         });
       }
 
@@ -919,6 +969,8 @@
         missionsBox.textContent = "";
         snap.forEach((d) => {
           const m = d.data() || {};
+          if (m.archived === true) return;
+
           const el = document.createElement("div");
           el.className = "item";
 
@@ -949,6 +1001,28 @@
             aLine.style.fontWeight = "700";
             aLine.textContent = `Validé par ${m.acknowledgedBy}`;
             el.appendChild(aLine);
+
+            const actions = document.createElement("div");
+            actions.className = "mission-actions";
+
+            const btnArch = document.createElement("button");
+            btnArch.type = "button";
+            btnArch.className = "btn-archive";
+            btnArch.textContent = "Archiver";
+            btnArch.addEventListener("click", async () => {
+              btnArch.disabled = true;
+              btnArch.textContent = "Archivage...";
+              try {
+                await archiveMission(d.id, m);
+              } catch (err) {
+                console.warn("Archive mission:", err);
+                btnArch.disabled = false;
+                btnArch.textContent = "Archiver";
+              }
+            });
+
+            actions.appendChild(btnArch);
+            el.appendChild(actions);
           }
 
           missionsBox.appendChild(el);
