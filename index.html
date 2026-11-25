@@ -507,7 +507,7 @@
 
     try {
       const {
-        initializeApp, getFirestore, collection, doc, addDoc, updateDoc, onSnapshot, query, orderBy, limit, serverTimestamp
+        initializeApp, getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, limit, serverTimestamp
       } = await loadFirebaseSdk();
 
       const firebaseConfig = {
@@ -539,6 +539,7 @@
 
       const markers = new Map();
       const lastKnownStatus = new Map();
+      const pendingEndOfServiceDeletes = new Set();
       let initialUnitsLoaded = false;
       let units = [];
       let mciEntries = [];
@@ -863,6 +864,34 @@
         });
       }
 
+      async function removeUnitOnEndOfService(docId, unitId, prevLabel, endLabel, crewCount) {
+        if (pendingEndOfServiceDeletes.has(docId)) return;
+        pendingEndOfServiceDeletes.add(docId);
+
+        try {
+          await addDoc(collection(db, "mci_logs"), {
+            unitId,
+            type: "STATUS_CHANGE",
+            previousStatus: "END_OF_SERVICE_PREV",
+            newStatus: "FIN_DE_SERVICE",
+            message: `Statut : ${prevLabel} -> ${endLabel} (Équipage retiré · ${formatCrew(crewCount)})`,
+            createdAt: serverTimestamp()
+          });
+
+          await deleteDoc(doc(db, "live_positions", docId));
+
+          if (selectedId === unitId || selectedId === docId) {
+            selectedId = null;
+            document.getElementById("sel-txt").textContent = "Aucune";
+            stopTrail();
+          }
+        } catch (err) {
+          console.warn("Suppression fin de service:", err);
+        } finally {
+          pendingEndOfServiceDeletes.delete(docId);
+        }
+      }
+
       document.querySelectorAll(".fbtn").forEach((btn) => {
         btn.addEventListener("click", () => {
           document.querySelectorAll(".fbtn").forEach((b) => b.classList.remove("active"));
@@ -908,13 +937,24 @@
           const crewCount = Math.max(1, Number(d.crewCount || 1));
           const st = normStatus(d.operationalStatus);
           const label = String(d.operationalStatusLabel || STATUS_LABELS[st]);
+          const prevState = lastKnownStatus.get(id);
+
+          if (st === "FIN_DE_SERVICE") {
+            const prevLabel = prevState ? prevState.label : "En service";
+            removeUnitOnEndOfService(docSnap.id, id, prevLabel, label, crewCount);
+            if (markers.has(id) && map) {
+              map.removeLayer(markers.get(id));
+              markers.delete(id);
+            }
+            return;
+          }
+
           const equipment = Array.isArray(d.equipment) ? d.equipment : [];
           const lat = typeof d.latitude === "number" ? d.latitude : null;
           const lng = typeof d.longitude === "number" ? d.longitude : null;
           const speed = typeof d.speedKmh === "number" ? d.speedKmh : 0;
           const tracking = Boolean(d.isTracking);
 
-          const prevState = lastKnownStatus.get(id);
           if (initialUnitsLoaded && prevState && prevState.status !== st) {
             addDoc(collection(db, "mci_logs"), {
               unitId: id,
