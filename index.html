@@ -31,9 +31,6 @@
       color: var(--text);
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       overflow: hidden;
-    }
-
-    body {
       display: flex;
       flex-direction: column;
     }
@@ -81,44 +78,34 @@
     .workspace {
       flex: 1;
       min-height: 0;
-      display: flex;
+      display: grid;
+      grid-template-columns: 330px 1fr 350px;
       width: 100%;
     }
 
-    aside {
-      width: 330px;
-      min-width: 290px;
+    aside, .right-pane {
       background: var(--panel);
-      border-right: 1px solid var(--border);
       display: flex;
       flex-direction: column;
       min-height: 0;
+      overflow: hidden;
     }
 
+    aside { border-right: 1px solid var(--border); }
+    .right-pane { border-left: 1px solid var(--border); }
+
     .map-area {
-      flex: 1;
+      position: relative;
+      width: 100%;
+      height: 100%;
       min-width: 0;
       min-height: 0;
-      position: relative;
       background: #1e293b;
     }
 
     #map {
-      position: absolute;
-      inset: 0;
       width: 100%;
       height: 100%;
-      z-index: 1;
-    }
-
-    .right-pane {
-      width: 350px;
-      min-width: 300px;
-      background: var(--panel);
-      border-left: 1px solid var(--border);
-      display: flex;
-      flex-direction: column;
-      min-height: 0;
     }
 
     .pane-header {
@@ -320,6 +307,19 @@
       margin-bottom: 3px;
     }
 
+    .diag-box {
+      margin-top: 8px;
+      padding: 8px 10px;
+      border-radius: 8px;
+      background: rgba(15, 23, 42, 0.7);
+      border: 1px solid var(--border);
+      font-family: monospace;
+      font-size: 11px;
+      color: #cbd5e1;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+
     .unit-divicon-root {
       position: relative;
       width: 22px;
@@ -370,7 +370,7 @@
     <div class="header-stats">
       <span>Unités suivies : <strong id="stat-total">0</strong></span>
       <span>En intervention : <strong id="stat-interv">0</strong></span>
-      <span id="sync-indicator">Initialisation...</span>
+      <span id="sync-indicator">Démarrage...</span>
     </div>
   </header>
 
@@ -382,4 +382,452 @@
       </div>
       <div class="filter-bar" id="filter-bar">
         <button class="filter-btn active" data-filter="ALL">Tous</button>
-        <button class="filter-btn" data-filter="
+        <button class="filter-btn" data-filter="PATROUILLE">Patrouille</button>
+        <button class="filter-btn" data-filter="INTERVENTION">Intervention</button>
+        <button class="filter-btn" data-filter="DISPONIBLE">Disponible</button>
+        <button class="filter-btn" data-filter="PAUSE">Pause</button>
+      </div>
+      <div class="scroll-list" id="units-list">
+        <p style="color:var(--muted);font-size:13px;">Initialisation de la carte et de Firestore...</p>
+        <div class="diag-box" id="diag-log">En attente d'événements...</div>
+      </div>
+    </aside>
+
+    <main class="map-area">
+      <div id="map"></div>
+      <div class="map-toolbar">
+        <button class="btn secondary" id="btn-toggle-history">Trajet unité : OFF</button>
+        <button class="btn secondary" id="btn-center-all">Recentrer</button>
+      </div>
+    </main>
+
+    <section class="right-pane">
+      <div class="right-tabs">
+        <button class="tab-btn active" data-tab="dispatch">Dispatch</button>
+        <button class="tab-btn" data-tab="mci">Main-courante (MCI)</button>
+      </div>
+
+      <div class="tab-panel active" id="panel-dispatch">
+        <form class="dispatch-form" id="dispatch-form">
+          <input type="text" id="mission-title" placeholder="Intitulé de mission / intervention" required />
+          <select id="mission-unit">
+            <option value="">Unité à affecter (optionnel)</option>
+          </select>
+          <textarea id="mission-notes" rows="2" placeholder="Lieu, consignes, précision..."></textarea>
+          <button type="submit" class="btn">Créer & consigner au MCI</button>
+        </form>
+        <div class="scroll-list" id="missions-list"></div>
+      </div>
+
+      <div class="tab-panel" id="panel-mci">
+        <form class="dispatch-form" id="mci-form">
+          <input type="text" id="mci-text" placeholder="Nouvelle mention de main-courante..." required />
+          <button type="submit" class="btn">Ajouter au registre</button>
+        </form>
+        <div class="scroll-list" id="mci-list"></div>
+      </div>
+    </section>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const syncEl = document.getElementById("sync-indicator");
+    const diagEl = document.getElementById("diag-log");
+    const mapEl = document.getElementById("map");
+
+    function pushDiag(line) {
+      if (!diagEl) return;
+      const current = diagEl.textContent === "En attente d'événements..." ? "" : diagEl.textContent + "\n";
+      diagEl.textContent = (current + line).slice(-1200);
+    }
+
+    window.addEventListener("error", (e) => {
+      syncEl.textContent = "Erreur JS";
+      syncEl.style.color = "#f87171";
+      pushDiag("ERROR: " + (e.message || "inconnue"));
+    });
+
+    let supervisorMap = null;
+    if (typeof L !== "undefined" && mapEl) {
+      supervisorMap = L.map(mapEl).setView([48.6918631, 2.3108942], 14);
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "© OpenStreetMap contributors"
+      }).addTo(supervisorMap);
+
+      const ro = new ResizeObserver(() => supervisorMap.invalidateSize());
+      ro.observe(mapEl);
+      setTimeout(() => supervisorMap.invalidateSize(), 150);
+      pushDiag("Leaflet initialisé.");
+    } else {
+      pushDiag("Leaflet indisponible (L undefined).");
+    }
+
+    document.querySelectorAll(".tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+        document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById("panel-" + btn.dataset.tab).classList.add("active");
+        if (supervisorMap) setTimeout(() => supervisorMap.invalidateSize(), 60);
+      });
+    });
+  </script>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      onSnapshot,
+      query,
+      orderBy,
+      limit,
+      serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+
+    const syncEl = document.getElementById("sync-indicator");
+    const unitsListEl = document.getElementById("units-list");
+    const missionsListEl = document.getElementById("missions-list");
+    const mciListEl = document.getElementById("mci-list");
+    const missionUnitSelectEl = document.getElementById("mission-unit");
+    const map = window.supervisorMap || (typeof L !== "undefined" ? L.map("map").setView([48.6918631, 2.3108942], 14) : null);
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyCua2pik8r_B9bo8s-OqFQunFVPPwHbmCg",
+      authDomain: "operator-supervisor-ops.firebaseapp.com",
+      projectId: "operator-supervisor-ops",
+      storageBucket: "operator-supervisor-ops.firebasestorage.app",
+      messagingSenderId: "390289085067",
+      appId: "1:390289085067:web:f6128eec4af06fb4143a8e"
+    };
+
+    const STATUS_CONFIG = {
+      PATROUILLE: { label: "En patrouille" },
+      INTERVENTION: { label: "En intervention" },
+      DISPONIBLE: { label: "Disponible" },
+      PAUSE: { label: "En pause" }
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const markers = new Map();
+    let allUnits = [];
+    let currentFilter = "ALL";
+    let selectedUnitId = null;
+    let showHistoryTrail = false;
+    let historyPolyline = null;
+    let unsubscribeHistory = null;
+    let centeredOnce = false;
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&")
+        .replaceAll("<", "<")
+        .replaceAll(">", ">")
+        .replaceAll('"', """);
+    }
+
+    function normalizeStatus(code) {
+      const upper = String(code || "PATROUILLE").toUpperCase();
+      return Object.prototype.hasOwnProperty.call(STATUS_CONFIG, upper) ? upper : "PATROUILLE";
+    }
+
+    function createLabeledStatusIcon(unitId, statusCode, statusLabel) {
+      const st = normalizeStatus(statusCode);
+      return L.divIcon({
+        className: "",
+        html: `
+          <div class="unit-divicon-root">
+            <div class="unit-marker status-${st}"></div>
+            <div class="unit-label-box">
+              <span class="unit-label-name">${escapeHtml(unitId)}</span>
+              <span class="unit-label-status">${escapeHtml(statusLabel)}</span>
+            </div>
+          </div>
+        `,
+        iconSize: [22, 22],
+        iconAnchor: [11, 11],
+        popupAnchor: [0, -14]
+      });
+    }
+
+    function clearHistoryListener() {
+      if (unsubscribeHistory) {
+        unsubscribeHistory();
+        unsubscribeHistory = null;
+      }
+      if (historyPolyline && map) {
+        map.removeLayer(historyPolyline);
+        historyPolyline = null;
+      }
+    }
+
+    function bindHistoryTrail(unitId) {
+      clearHistoryListener();
+      if (!showHistoryTrail || !unitId || !map) return;
+
+      const histQuery = query(
+        collection(db, "live_positions", unitId, "history"),
+        orderBy("updatedAt", "desc"),
+        limit(50)
+      );
+
+      unsubscribeHistory = onSnapshot(histQuery, (snap) => {
+        const pts = [];
+        snap.forEach((docItem) => {
+          const d = docItem.data() || {};
+          if (typeof d.latitude === "number" && typeof d.longitude === "number") {
+            pts.push([d.latitude, d.longitude]);
+          }
+        });
+        pts.reverse();
+        if (historyPolyline) map.removeLayer(historyPolyline);
+        if (pts.length > 1) {
+          historyPolyline = L.polyline(pts, { color: "#38bdf8", weight: 3, dashArray: "6,6" }).addTo(map);
+        }
+      }, () => {});
+    }
+
+    function selectUnit(unitId, centerMap = true) {
+      selectedUnitId = unitId;
+      document.getElementById("selected-unit-badge").textContent = unitId || "Aucune sélection";
+      const unit = allUnits.find((u) => u.unitId === unitId);
+      if (unit && centerMap && map && typeof unit.latitude === "number" && typeof unit.longitude === "number") {
+        map.setView([unit.latitude, unit.longitude], 16);
+        markers.get(unitId)?.openPopup();
+      }
+      bindHistoryTrail(unitId);
+      renderUnitsList();
+    }
+
+    function renderUnitsList() {
+      const filtered = currentFilter === "ALL"
+        ? allUnits
+        : allUnits.filter((u) => u.operationalStatus === currentFilter);
+
+      document.getElementById("stat-total").textContent = String(allUnits.length);
+      document.getElementById("stat-interv").textContent = String(
+        allUnits.filter((u) => u.operationalStatus === "INTERVENTION").length
+      );
+
+      const prevSel = missionUnitSelectEl.value;
+      missionUnitSelectEl.innerHTML = `<option value="">Unité à affecter (optionnel)</option>`;
+      for (const u of allUnits) {
+        const opt = document.createElement("option");
+        opt.value = u.unitId;
+        opt.textContent = u.unitId;
+        missionUnitSelectEl.appendChild(opt);
+      }
+      if (prevSel) missionUnitSelectEl.value = prevSel;
+
+      unitsListEl.innerHTML = "";
+      if (filtered.length === 0) {
+        unitsListEl.innerHTML = `<p style="color:var(--muted);font-size:13px;">Aucune unité dans <code>live_positions</code> pour ce filtre.</p>`;
+        return;
+      }
+
+      for (const unit of filtered) {
+        const card = document.createElement("div");
+        card.className = `unit-card ${unit.unitId === selectedUnitId ? "selected" : ""}`;
+        const equipHtml = unit.equipment.length
+          ? `<div class="equip-tags">${unit.equipment.map((eq) => `<span class="equip-tag">${escapeHtml(eq)}</span>`).join("")}</div>`
+          : "";
+
+        card.innerHTML = `
+          <div class="unit-top">
+            <strong>${escapeHtml(unit.unitId)}</strong>
+            <span class="badge bg-${unit.operationalStatus}">${escapeHtml(unit.operationalStatusLabel)}</span>
+          </div>
+          <div class="unit-meta">
+            <span>${unit.speedKmh.toFixed(1)} km/h</span>
+            <span>${unit.isTracking ? "Actif" : "Arrêté"}</span>
+          </div>
+          ${equipHtml}
+        `;
+        card.addEventListener("click", () => selectUnit(unit.unitId, true));
+        unitsListEl.appendChild(card);
+      }
+    }
+
+    onSnapshot(collection(db, "live_positions"), (snapshot) => {
+      syncEl.textContent = "Firestore synchronisé";
+      syncEl.style.color = "#4ade80";
+
+      const nextUnits = [];
+      const seenIds = new Set();
+      const coords = [];
+
+      snapshot.forEach((docSnap) => {
+        const data = docSnap.data() || {};
+        const unitId = String(data.unitId || docSnap.id);
+        const operationalStatus = normalizeStatus(data.operationalStatus);
+        const operationalStatusLabel = String(data.operationalStatusLabel || STATUS_CONFIG[operationalStatus].label);
+        const equipment = Array.isArray(data.equipment) ? data.equipment : [];
+        const lat = typeof data.latitude === "number" ? data.latitude : null;
+        const lng = typeof data.longitude === "number" ? data.longitude : null;
+        const speedKmh = typeof data.speedKmh === "number" ? data.speedKmh : 0;
+        const isTracking = Boolean(data.isTracking);
+
+        seenIds.add(unitId);
+        nextUnits.push({
+          unitId,
+          operationalStatus,
+          operationalStatusLabel,
+          equipment,
+          latitude: lat,
+          longitude: lng,
+          speedKmh,
+          isTracking
+        });
+
+        if (lat !== null && lng !== null && map && typeof L !== "undefined") {
+          coords.push([lat, lng]);
+          const popupHtml = `
+            <div style="color:#0f172a;font-size:13px;">
+              <strong>${escapeHtml(unitId)}</strong><br/>
+              <strong>Statut :</strong> ${escapeHtml(operationalStatusLabel)}<br/>
+              <strong>Vitesse :</strong> ${speedKmh.toFixed(1)} km/h<br/>
+              <strong>Matériel :</strong> ${equipment.length ? escapeHtml(equipment.join(", ")) : "Aucun"}
+            </div>
+          `;
+          const icon = createLabeledStatusIcon(unitId, operationalStatus, operationalStatusLabel);
+
+          if (markers.has(unitId)) {
+            const m = markers.get(unitId);
+            m.setLatLng([lat, lng]);
+            m.setIcon(icon);
+            m.setPopupContent(popupHtml);
+          } else {
+            const m = L.marker([lat, lng], { icon })
+              .addTo(map)
+              .bindPopup(popupHtml)
+              .on("click", () => selectUnit(unitId, false));
+            markers.set(unitId, m);
+          }
+        } else if (markers.has(unitId) && map) {
+          map.removeLayer(markers.get(unitId));
+          markers.delete(unitId);
+        }
+      });
+
+      if (map) {
+        for (const [id, marker] of markers.entries()) {
+          if (!seenIds.has(id)) {
+            map.removeLayer(marker);
+            markers.delete(id);
+          }
+        }
+      }
+
+      allUnits = nextUnits;
+      renderUnitsList();
+
+      if (!centeredOnce && coords.length > 0 && map) {
+        centeredOnce = true;
+        map.fitBounds(coords, { padding: [40, 40], maxZoom: 15 });
+      }
+    }, (err) => {
+      syncEl.textContent = "Erreur Firestore";
+      syncEl.style.color = "#f87171";
+      unitsListEl.innerHTML = `<p style="color:#f87171;font-size:13px;">Erreur lecture <code>live_positions</code> : ${escapeHtml(err.message || err.code)}</p>`;
+    });
+
+    onSnapshot(query(collection(db, "missions"), orderBy("createdAt", "desc"), limit(30)), (snap) => {
+      missionsListEl.innerHTML = "";
+      snap.forEach((d) => {
+        const m = d.data() || {};
+        const el = document.createElement("div");
+        el.className = "mission-item";
+        el.innerHTML = `
+          <div><strong>${escapeHtml(m.title || "Mission")}</strong></div>
+          <div style="color:var(--muted);margin-top:3px;">Unité : ${escapeHtml(m.unitId || "Non affectée")}</div>
+          ${m.notes ? `<div style="margin-top:4px;">${escapeHtml(m.notes)}</div>` : ""}
+        `;
+        missionsListEl.appendChild(el);
+      });
+    }, () => {});
+
+    onSnapshot(query(collection(db, "mci_logs"), orderBy("createdAt", "desc"), limit(50)), (snap) => {
+      mciListEl.innerHTML = "";
+      snap.forEach((d) => {
+        const entry = d.data() || {};
+        const dateObj = entry.createdAt?.toDate ? entry.createdAt.toDate() : null;
+        const timeStr = dateObj ? dateObj.toLocaleTimeString("fr-FR") : "--:--:--";
+        const el = document.createElement("div");
+        el.className = "mci-entry";
+        el.innerHTML = `
+          <div class="mci-time">${escapeHtml(timeStr)} ${entry.unitId ? `· ${escapeHtml(entry.unitId)}` : ""}</div>
+          <div>${escapeHtml(entry.message || "")}</div>
+        `;
+        mciListEl.appendChild(el);
+      });
+    }, () => {});
+
+    document.getElementById("dispatch-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const title = document.getElementById("mission-title").value.trim();
+      const unitId = document.getElementById("mission-unit").value.trim();
+      const notes = document.getElementById("mission-notes").value.trim();
+      if (!title) return;
+
+      await addDoc(collection(db, "missions"), {
+        title,
+        unitId,
+        notes,
+        status: "OUVERTE",
+        createdAt: serverTimestamp()
+      });
+
+      await addDoc(collection(db, "mci_logs"), {
+        unitId,
+        message: `Dispatch : ${title}${unitId ? ` -> ${unitId}` : ""}${notes ? ` (${notes})` : ""}`,
+        createdAt: serverTimestamp()
+      });
+
+      e.target.reset();
+    });
+
+    document.getElementById("mci-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const message = document.getElementById("mci-text").value.trim();
+      if (!message) return;
+
+      await addDoc(collection(db, "mci_logs"), {
+        unitId: selectedUnitId || "",
+        message,
+        createdAt: serverTimestamp()
+      });
+
+      e.target.reset();
+    });
+
+    document.getElementById("filter-bar").addEventListener("click", (e) => {
+      const btn = e.target.closest(".filter-btn");
+      if (!btn) return;
+      currentFilter = btn.dataset.filter;
+      document.querySelectorAll(".filter-btn").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      renderUnitsList();
+    });
+
+    document.getElementById("btn-toggle-history").addEventListener("click", (e) => {
+      showHistoryTrail = !showHistoryTrail;
+      e.target.textContent = `Trajet unité : ${showHistoryTrail ? "ON" : "OFF"}`;
+      bindHistoryTrail(selectedUnitId);
+    });
+
+    document.getElementById("btn-center-all").addEventListener("click", () => {
+      if (!map) return;
+      const coords = allUnits
+        .filter((u) => typeof u.latitude === "number" && typeof u.longitude === "number")
+        .map((u) => [u.latitude, u.longitude]);
+      if (coords.length > 0) {
+        map.fitBounds(coords, { padding: [40, 40], maxZoom: 15 });
+      }
+    });
+  </script>
+</body>
+</html>
