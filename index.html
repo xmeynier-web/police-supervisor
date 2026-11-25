@@ -283,26 +283,34 @@
         maxZoom: 19,
         attribution: "© OpenStreetMap"
       }).addTo(window.supMap);
-      new ResizeObserver(() => window.supMap && window.supMap.invalidateSize()).observe(document.getElementById("map"));
-      setTimeout(() => window.supMap && window.supMap.invalidateSize(), 150);
+      new ResizeObserver(function () {
+        if (window.supMap) window.supMap.invalidateSize();
+      }).observe(document.getElementById("map"));
+      setTimeout(function () {
+        if (window.supMap) window.supMap.invalidateSize();
+      }, 150);
     }
-    document.querySelectorAll(".tbtn").forEach((b) => {
-      b.addEventListener("click", () => {
-        document.querySelectorAll(".tbtn").forEach((x) => x.classList.remove("active"));
-        document.querySelectorAll(".panel").forEach((x) => x.classList.remove("active"));
+
+    document.querySelectorAll(".tbtn").forEach(function (b) {
+      b.addEventListener("click", function () {
+        document.querySelectorAll(".tbtn").forEach(function (x) { x.classList.remove("active"); });
+        document.querySelectorAll(".panel").forEach(function (x) { x.classList.remove("active"); });
         b.classList.add("active");
         document.getElementById("p-" + b.dataset.p).classList.add("active");
-        setTimeout(() => window.supMap && window.supMap.invalidateSize(), 60);
+        setTimeout(function () {
+          if (window.supMap) window.supMap.invalidateSize();
+        }, 60);
       });
     });
-    setTimeout(() => {
-      const st = document.getElementById("status-txt");
-      const box = document.getElementById("units-box");
+
+    setTimeout(function () {
+      var st = document.getElementById("status-txt");
+      var box = document.getElementById("units-box");
       if (st && st.textContent === "Chargement...") {
         st.textContent = "Timeout / Bloqué";
         st.style.color = "#f87171";
         if (box) {
-          box.innerHTML = '<p style="color:#f87171;font-size:12px;">Aucune réponse de Firestore après 5s. Vérifiez l\'accès à <code>gstatic.com</code>, les règles Firestore ou la console (F12).</p>';
+          box.innerHTML = "<p style='color:#f87171;font-size:12px;'>Aucune réponse de Firestore après 5s. Vérifiez la console (F12) ou les règles Firestore.</p>";
         }
       }
     }, 5000);
@@ -318,7 +326,7 @@
         statusTxt.style.color = "#f87171";
       }
       if (unitsBox) {
-        unitsBox.innerHTML = '<p style="color:#f87171;font-size:12px;">' + label + " : " + String(e?.message || e?.code || e) + "</p>";
+        unitsBox.innerHTML = "<p style='color:#f87171;font-size:12px;'>" + label + " : " + String(e?.message || e?.code || e) + "</p>";
       }
     }
 
@@ -372,22 +380,24 @@
       let unsubTrail = null;
       let fittedOnce = false;
 
-      const esc = (v) => String(v ?? "")
-        .replace(/&/g, "&")
-        .replace(/</g, "<")
-        .replace(/>/g, ">")
-        .replace(/"/g, """);
+      function esc(v) {
+        return String(v ?? "")
+          .replace(/&/g, "&")
+          .replace(/</g, "<")
+          .replace(/>/g, ">")
+          .replace(/"/g, """);
+      }
 
-      const normStatus = (c) => {
+      function normStatus(c) {
         const u = String(c || "PATROUILLE").toUpperCase();
         return Object.prototype.hasOwnProperty.call(STATUS_LABELS, u) ? u : "PATROUILLE";
-      };
+      }
 
       function makeIcon(id, code, label) {
         const st = normStatus(code);
         return L.divIcon({
           className: "",
-          html: '<div class="marker-wrap"><div class="marker-dot st-' + st + '"></div><div class="marker-tag">' + esc(id) + '<span class="marker-sub">' + esc(label) + '</span></div></div>',
+          html: "<div class='marker-wrap'><div class='marker-dot st-" + st + "'></div><div class='marker-tag'>" + esc(id) + "<span class='marker-sub'>" + esc(label) + "</span></div></div>",
           iconSize: [20, 20],
           iconAnchor: [10, 10],
           popupAnchor: [0, -12]
@@ -437,7 +447,7 @@
         document.getElementById("cnt-int").textContent = String(units.filter((u) => u.status === "INTERVENTION").length);
 
         const prev = mUnitSel.value;
-        mUnitSel.innerHTML = '<option value="">Unité (optionnel)</option>';
+        mUnitSel.innerHTML = "<option value=''>Unité (optionnel)</option>";
         units.forEach((u) => {
           const o = document.createElement("option");
           o.value = u.id;
@@ -447,7 +457,7 @@
         if (prev) mUnitSel.value = prev;
 
         if (list.length === 0) {
-          unitsBox.innerHTML = '<p style="color:#94a3b8;font-size:12px;">Aucune unité dans <code>live_positions</code>.</p>';
+          unitsBox.innerHTML = "<p style='color:#94a3b8;font-size:12px;'>Aucune unité dans <code>live_positions</code>.</p>";
           return;
         }
 
@@ -456,9 +466,9 @@
           const div = document.createElement("div");
           div.className = "card" + (u.id === selectedId ? " selected" : "");
           const eq = u.equipment.length
-            ? '<div class="tags">' + u.equipment.map((e) => '<span class="tag">' + esc(e) + "</span>").join("") + "</div>"
+            ? "<div class='tags'>" + u.equipment.map((e) => "<span class='tag'>" + esc(e) + "</span>").join("") + "</div>"
             : "";
-          div.innerHTML = '<div class="card-head"><strong>' + esc(u.id) + '</strong><span class="badge st-' + u.status + '">' + esc(u.label) + '</span></div><div class="meta"><span>' + u.speed.toFixed(1) + ' km/h</span><span>' + (u.tracking ? "Actif" : "Arrêté") + "</span></div>" + eq;
+          div.innerHTML = "<div class='card-head'><strong>" + esc(u.id) + "</strong><span class='badge st-" + u.status + "'>" + esc(u.label) + "</span></div><div class='meta'><span>" + u.speed.toFixed(1) + " km/h</span><span>" + (u.tracking ? "Actif" : "Arrêté") + "</span></div>" + eq;
           div.addEventListener("click", () => pickUnit(u.id, true));
           unitsBox.appendChild(div);
         });
@@ -487,7 +497,7 @@
 
           if (lat !== null && lng !== null && map && typeof L !== "undefined") {
             bounds.push([lat, lng]);
-            const pop = '<div style="color:#0f172a;font-size:12px;"><strong>' + esc(id) + '</strong><br/>Statut : ' + esc(label) + '<br/>Vitesse : ' + speed.toFixed(1) + ' km/h<br/>Matériel : ' + (equipment.length ? esc(equipment.join(", ")) : "Aucun") + "</div>";
+            const pop = "<div style='color:#0f172a;font-size:12px;'><strong>" + esc(id) + "</strong><br/>Statut : " + esc(label) + "<br/>Vitesse : " + speed.toFixed(1) + " km/h<br/>Matériel : " + (equipment.length ? esc(equipment.join(", ")) : "Aucun") + "</div>";
             const icon = makeIcon(id, st, label);
             if (markers.has(id)) {
               const m = markers.get(id);
@@ -524,7 +534,7 @@
           const m = d.data() || {};
           const el = document.createElement("div");
           el.className = "item";
-          el.innerHTML = '<strong>' + esc(m.title || "Mission") + '</strong><div style="color:#94a3b8;margin-top:2px;">Unité : ' + esc(m.unitId || "Non affectée") + "</div>" + (m.notes ? '<div style="margin-top:3px;">' + esc(m.notes) + "</div>" : "");
+          el.innerHTML = "<strong>" + esc(m.title || "Mission") + "</strong><div style='color:#94a3b8;margin-top:2px;'>Unité : " + esc(m.unitId || "Non affectée") + "</div>" + (m.notes ? "<div style='margin-top:3px;'>" + esc(m.notes) + "</div>" : "");
           missionsBox.appendChild(el);
         });
       }, () => {});
@@ -536,7 +546,7 @@
           const dt = x.createdAt?.toDate ? x.createdAt.toDate().toLocaleTimeString("fr-FR") : "--:--:--";
           const el = document.createElement("div");
           el.className = "item";
-          el.innerHTML = '<div class="time">' + esc(dt) + (x.unitId ? " · " + esc(x.unitId) : "") + "</div><div>" + esc(x.message || "") + "</div>";
+          el.innerHTML = "<div class='time'>" + esc(dt) + (x.unitId ? " · " + esc(x.unitId) : "") + "</div><div>" + esc(x.message || "") + "</div>";
           mciBox.appendChild(el);
         });
       }, () => {});
