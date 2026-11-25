@@ -68,9 +68,7 @@
       color: var(--muted);
     }
 
-    .header-stats strong {
-      color: var(--text);
-    }
+    .header-stats strong { color: var(--text); }
 
     .workspace {
       display: grid;
@@ -142,14 +140,10 @@
       padding: 10px 12px;
       margin-bottom: 10px;
       cursor: pointer;
-      transition: border-color 0.15s ease, transform 0.15s ease;
     }
 
     .unit-card:hover { border-color: var(--accent); }
-    .unit-card.selected {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 1px var(--accent);
-    }
+    .unit-card.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
 
     .unit-top {
       display: flex;
@@ -200,6 +194,7 @@
       position: relative;
       height: 100%;
       width: 100%;
+      background: #1e293b;
     }
 
     #map {
@@ -304,7 +299,6 @@
       margin-bottom: 3px;
     }
 
-    /* Marqueur Leaflet + étiquette sous le marqueur */
     .unit-divicon-root {
       position: relative;
       width: 22px;
@@ -317,7 +311,6 @@
       border-radius: 50%;
       border: 3px solid #ffffff;
       box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
-      transition: transform 0.2s ease, background-color 0.2s ease;
     }
 
     .unit-label-box {
@@ -334,7 +327,6 @@
       padding: 3px 8px;
       border-radius: 6px;
       border: 1px solid rgba(148, 163, 184, 0.35);
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
       pointer-events: none;
       line-height: 1.2;
     }
@@ -343,7 +335,7 @@
     .unit-label-status { font-size: 10px; color: #cbd5e1; }
 
     .status-PATROUILLE { background-color: var(--patrouille); }
-    .status-INTERVENTION { background-color: var(--intervention); transform: scale(1.12); }
+    .status-INTERVENTION { background-color: var(--intervention); }
     .status-DISPONIBLE { background-color: var(--disponible); }
     .status-PAUSE { background-color: var(--pause); }
   </style>
@@ -357,12 +349,11 @@
     <div class="header-stats">
       <span>Unités suivies : <strong id="stat-total">0</strong></span>
       <span>En intervention : <strong id="stat-interv">0</strong></span>
-      <span id="sync-indicator">Connexion Firestore...</span>
+      <span id="sync-indicator">Initialisation...</span>
     </div>
   </header>
 
   <div class="workspace">
-    <!-- Colonne gauche : Unités en direct & filtres -->
     <aside>
       <div class="pane-header">
         <span>Unités opérationnelles</span>
@@ -375,10 +366,11 @@
         <button class="filter-btn" data-filter="DISPONIBLE">Disponible</button>
         <button class="filter-btn" data-filter="PAUSE">Pause</button>
       </div>
-      <div class="scroll-list" id="units-list"></div>
+      <div class="scroll-list" id="units-list">
+        <p style="color:var(--muted);font-size:13px;">Chargement des unités...</p>
+      </div>
     </aside>
 
-    <!-- Centre : Carte Leaflet -->
     <main class="map-wrap">
       <div id="map"></div>
       <div class="map-toolbar">
@@ -387,7 +379,6 @@
       </div>
     </main>
 
-    <!-- Colonne droite : Dispatch & Main-Courante (MCI) -->
     <section class="right-pane">
       <div class="right-tabs">
         <button class="tab-btn active" data-tab="dispatch">Dispatch</button>
@@ -418,6 +409,33 @@
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script type="module">
+    const syncIndicatorEl = document.getElementById("sync-indicator");
+    const unitsListEl = document.getElementById("units-list");
+
+    function showFatalError(msg) {
+      syncIndicatorEl.textContent = "Erreur";
+      syncIndicatorEl.style.color = "#f87171";
+      unitsListEl.innerHTML = `<p style="color:#f87171;font-size:12px;">${msg}</p>`;
+    }
+
+    window.addEventListener("error", (ev) => {
+      showFatalError(ev.message || "Erreur script");
+    });
+    window.addEventListener("unhandledrejection", (ev) => {
+      showFatalError(ev.reason?.message || "Erreur promesse");
+    });
+
+    if (typeof L === "undefined") {
+      showFatalError("Leaflet n'a pas pu être chargé (vérifier l'accès réseau à unpkg.com).");
+    }
+
+    const map = L.map("map").setView([48.75, 2.33], 13);
+    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+      maxZoom: 19,
+      attribution: "© OpenStreetMap contributors"
+    }).addTo(map);
+    setTimeout(() => map.invalidateSize(), 200);
+
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
     import {
       getFirestore,
@@ -449,11 +467,6 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-    const map = L.map("map").setView([48.75, 2.33], 13);
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      attribution: "© OpenStreetMap contributors"
-    }).addTo(map);
-
     const markers = new Map();
     let allUnits = [];
     let currentFilter = "ALL";
@@ -462,11 +475,9 @@
     let historyPolyline = null;
     let unsubscribeHistory = null;
 
-    const unitsListEl = document.getElementById("units-list");
     const missionsListEl = document.getElementById("missions-list");
     const mciListEl = document.getElementById("mci-list");
     const missionUnitSelectEl = document.getElementById("mission-unit");
-    const syncIndicatorEl = document.getElementById("sync-indicator");
 
     function escapeHtml(value) {
       return String(value ?? "")
@@ -571,7 +582,7 @@
 
       unitsListEl.innerHTML = "";
       if (filtered.length === 0) {
-        unitsListEl.innerHTML = `<p style="color:var(--muted);font-size:13px;">Aucune unité pour ce filtre.</p>`;
+        unitsListEl.innerHTML = `<p style="color:var(--muted);font-size:13px;">Aucune unité dans <code>live_positions</code> pour ce filtre.</p>`;
         return;
       }
 
@@ -601,6 +612,7 @@
 
     onSnapshot(collection(db, "live_positions"), (snapshot) => {
       syncIndicatorEl.textContent = "Firestore synchronisé";
+      syncIndicatorEl.style.color = "#4ade80";
       const nextUnits = [];
       const seenIds = new Set();
 
@@ -636,7 +648,8 @@
             <div style="color:#0f172a;font-size:13px;">
               <strong>${escapeHtml(unitName)}</strong> (${escapeHtml(unitId)})<br/>
               <strong>Statut :</strong> ${escapeHtml(operationalStatusLabel)}<br/>
-              <strong>Vitesse :</strong> ${speedKmh.toFixed(1)} km/h<br/>${missionNote ? `<strong>Note :</strong> ${escapeHtml(missionNote)}<br/>` : ""}
+              <strong>Vitesse :</strong> ${speedKmh.toFixed(1)} km/h<br/>
+              ${missionNote ? `<strong>Note :</strong> ${escapeHtml(missionNote)}<br/>` : ""}
               <strong>Matériel :</strong> ${equipment.length ? escapeHtml(equipment.join(", ")) : "Aucun"}
             </div>
           `;
@@ -670,11 +683,10 @@
       allUnits = nextUnits;
       renderUnitsList();
     }, (err) => {
-      syncIndicatorEl.textContent = "Erreur Firestore";
+      showFatalError(`Firestore : ${err.message || err.code}`);
       console.error(err);
     });
 
-    // Missions / Dispatch
     onSnapshot(query(collection(db, "missions"), orderBy("createdAt", "desc"), limit(30)), (snap) => {
       missionsListEl.innerHTML = "";
       snap.forEach((d) => {
@@ -683,4 +695,99 @@
         el.className = "mission-item";
         el.innerHTML = `
           <div><strong>${escapeHtml(m.title || "Mission")}</strong></div>
-          <div style="color:var(--muted);margin-top:3px;">Unité : ${escapeHtml(m.unitId || "Non affectée")}
+          <div style="color:var(--muted);margin-top:3px;">Unité : ${escapeHtml(m.unitId || "Non affectée")}</div>
+          ${m.notes ? `<div style="margin-top:4px;">${escapeHtml(m.notes)}</div>` : ""}
+        `;
+        missionsListEl.appendChild(el);
+      });
+    }, () => {});
+
+    onSnapshot(query(collection(db, "mci_logs"), orderBy("createdAt", "desc"), limit(50)), (snap) => {
+      mciListEl.innerHTML = "";
+      snap.forEach((d) => {
+        const entry = d.data() || {};
+        const dateObj = entry.createdAt?.toDate ? entry.createdAt.toDate() : null;
+        const timeStr = dateObj ? dateObj.toLocaleTimeString("fr-FR") : "--:--:--";
+        const el = document.createElement("div");
+        el.className = "mci-entry";
+        el.innerHTML = `
+          <div class="mci-time">${escapeHtml(timeStr)} ${entry.unitId ? `· ${escapeHtml(entry.unitId)}` : ""}</div>
+          <div>${escapeHtml(entry.message || "")}</div>
+        `;
+        mciListEl.appendChild(el);
+      });
+    }, () => {});
+
+    document.getElementById("dispatch-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const title = document.getElementById("mission-title").value.trim();
+      const unitId = document.getElementById("mission-unit").value.trim();
+      const notes = document.getElementById("mission-notes").value.trim();
+      if (!title) return;
+
+      await addDoc(collection(db, "missions"), {
+        title,
+        unitId,
+        notes,
+        status: "OUVERTE",
+        createdAt: serverTimestamp()
+      });
+
+      await addDoc(collection(db, "mci_logs"), {
+        unitId,
+        message: `Dispatch : ${title}${unitId ? ` -> ${unitId}` : ""}${notes ? ` (${notes})` : ""}`,
+        createdAt: serverTimestamp()
+      });
+
+      e.target.reset();
+    });
+
+    document.getElementById("mci-form").addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const message = document.getElementById("mci-text").value.trim();
+      if (!message) return;
+
+      await addDoc(collection(db, "mci_logs"), {
+        unitId: selectedUnitId || "",
+        message,
+        createdAt: serverTimestamp()
+      });
+
+      e.target.reset();
+    });
+
+    document.getElementById("filter-bar").addEventListener("click", (e) => {
+      const btn = e.target.closest(".filter-btn");
+      if (!btn) return;
+      currentFilter = btn.dataset.filter;
+      document.querySelectorAll(".filter-btn").forEach((b) => b.classList.remove("active"));
+      btn.classList.add("active");
+      renderUnitsList();
+    });
+
+    document.querySelectorAll(".tab-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tab-btn").forEach((b) => b.classList.remove("active"));
+        document.querySelectorAll(".tab-panel").forEach((p) => p.classList.remove("active"));
+        btn.classList.add("active");
+        document.getElementById(`panel-${btn.dataset.tab}`).classList.add("active");
+      });
+    });
+
+    document.getElementById("btn-toggle-history").addEventListener("click", (e) => {
+      showHistoryTrail = !showHistoryTrail;
+      e.target.textContent = `Trajet unité : ${showHistoryTrail ? "ON" : "OFF"}`;
+      bindHistoryTrail(selectedUnitId);
+    });
+
+    document.getElementById("btn-center-all").addEventListener("click", () => {
+      const coords = allUnits
+        .filter((u) => typeof u.latitude === "number" && typeof u.longitude === "number")
+        .map((u) => [u.latitude, u.longitude]);
+      if (coords.length > 0) {
+        map.fitBounds(coords, { padding: [36, 36], maxZoom: 15 });
+      }
+    });
+  </script>
+</body>
+</html>
