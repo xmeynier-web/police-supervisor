@@ -3,70 +3,308 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Console Superviseur — Géolocalisation</title>
+  <title>Console Superviseur — police-supervisor</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <style>
-    * {
-      box-sizing: border-box;
+    :root {
+      --bg: #0f172a;
+      --panel: #1e293b;
+      --panel-2: #162032;
+      --border: #334155;
+      --text: #f8fafc;
+      --muted: #94a3b8;
+      --accent: #38bdf8;
+      --patrouille: #2563eb;
+      --intervention: #dc2626;
+      --disponible: #16a34a;
+      --pause: #d97706;
     }
+
+    * { box-sizing: border-box; }
 
     body {
       margin: 0;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      display: flex;
+      background: var(--bg);
+      color: var(--text);
       height: 100vh;
-      background: #f8fafc;
-      color: #0f172a;
+      display: grid;
+      grid-template-rows: 54px 1fr;
+      overflow: hidden;
     }
 
-    #sidebar {
-      width: 340px;
-      padding: 14px;
+    header {
+      background: var(--panel-2);
+      border-bottom: 1px solid var(--border);
+      padding: 0 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      font-size: 15px;
+    }
+
+    .pill-project {
+      font-size: 12px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent);
+      border: 1px solid rgba(56, 189, 248, 0.35);
+      font-family: monospace;
+    }
+
+    .header-stats {
+      display: flex;
+      gap: 14px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .header-stats strong {
+      color: var(--text);
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: 340px 1fr 360px;
+      height: calc(100vh - 54px);
+      overflow: hidden;
+    }
+
+    aside, section.right-pane {
+      background: var(--panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    section.right-pane {
+      border-right: none;
+      border-left: 1px solid var(--border);
+    }
+
+    .pane-header {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel-2);
+      font-weight: 700;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel-2);
+    }
+
+    .filter-btn {
+      background: var(--panel);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 4px 10px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .filter-btn.active {
+      background: var(--accent);
+      color: #082f49;
+      border-color: var(--accent);
+      font-weight: 700;
+    }
+
+    .scroll-list {
+      padding: 10px 12px;
       overflow-y: auto;
-      border-right: 1px solid #e2e8f0;
-      background: #ffffff;
-    }
-
-    #sidebar h2 {
-      margin: 0 0 12px;
-      font-size: 18px;
-    }
-
-    #map {
       flex: 1;
-      height: 100%;
     }
 
     .unit-card {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
+      background: var(--panel-2);
+      border: 1px solid var(--border);
       border-radius: 10px;
       padding: 10px 12px;
       margin-bottom: 10px;
       cursor: pointer;
-      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+      transition: border-color 0.15s ease, transform 0.15s ease;
     }
 
-    .unit-card:hover {
-      border-color: #94a3b8;
-      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
+    .unit-card:hover { border-color: var(--accent); }
+    .unit-card.selected {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent);
+    }
+
+    .unit-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
     }
 
     .badge {
       display: inline-block;
       padding: 2px 8px;
       border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .bg-PATROUILLE { background: var(--patrouille); }
+    .bg-INTERVENTION { background: var(--intervention); }
+    .bg-DISPONIBLE { background: var(--disponible); }
+    .bg-PAUSE { background: var(--pause); }
+
+    .unit-meta {
+      margin-top: 6px;
       font-size: 12px;
-      font-weight: 600;
+      color: var(--muted);
+      display: flex;
+      justify-content: space-between;
     }
 
-    .equip-list {
-      margin: 6px 0 0;
-      padding-left: 18px;
-      font-size: 13px;
-      color: #334155;
+    .equip-tags {
+      margin-top: 8px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
     }
 
+    .equip-tag {
+      font-size: 11px;
+      padding: 2px 7px;
+      border-radius: 6px;
+      background: rgba(148, 163, 184, 0.14);
+      color: #e2e8f0;
+      border: 1px solid rgba(148, 163, 184, 0.25);
+    }
+
+    .map-wrap {
+      position: relative;
+      height: 100%;
+      width: 100%;
+    }
+
+    #map {
+      height: 100%;
+      width: 100%;
+    }
+
+    .map-toolbar {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      z-index: 500;
+      display: flex;
+      gap: 8px;
+      background: rgba(15, 23, 42, 0.9);
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+
+    .btn {
+      background: var(--accent);
+      color: #082f49;
+      border: none;
+      border-radius: 8px;
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+
+    .btn.secondary {
+      background: var(--panel);
+      color: var(--text);
+      border: 1px solid var(--border);
+    }
+
+    .right-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel-2);
+    }
+
+    .tab-btn {
+      padding: 10px;
+      background: transparent;
+      color: var(--muted);
+      border: none;
+      border-bottom: 2px solid transparent;
+      font-weight: 700;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    .tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .tab-panel {
+      display: none;
+      flex-direction: column;
+      height: calc(100% - 39px);
+      overflow: hidden;
+    }
+
+    .tab-panel.active { display: flex; }
+
+    form.dispatch-form {
+      padding: 12px;
+      border-bottom: 1px solid var(--border);
+      background: var(--panel-2);
+      display: grid;
+      gap: 8px;
+    }
+
+    input, select, textarea {
+      width: 100%;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 12px;
+      font-family: inherit;
+    }
+
+    .mission-item, .mci-entry {
+      background: var(--panel-2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 9px 11px;
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+
+    .mci-time {
+      color: var(--accent);
+      font-family: monospace;
+      font-size: 11px;
+      margin-bottom: 3px;
+    }
+
+    /* Marqueur Leaflet + étiquette sous le marqueur */
     .unit-divicon-root {
       position: relative;
       width: 22px;
@@ -78,7 +316,7 @@
       height: 22px;
       border-radius: 50%;
       border: 3px solid #ffffff;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
       transition: transform 0.2s ease, background-color 0.2s ease;
     }
 
@@ -91,55 +329,106 @@
       flex-direction: column;
       align-items: center;
       white-space: nowrap;
-      background: rgba(15, 23, 42, 0.92);
+      background: rgba(15, 23, 42, 0.94);
       color: #ffffff;
       padding: 3px 8px;
       border-radius: 6px;
-      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.28);
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
       pointer-events: none;
       line-height: 1.2;
     }
 
-    .unit-label-name {
-      font-size: 12px;
-      font-weight: 700;
-    }
+    .unit-label-name { font-size: 12px; font-weight: 700; }
+    .unit-label-status { font-size: 10px; color: #cbd5e1; }
 
-    .unit-label-status {
-      font-size: 10px;
-      font-weight: 600;
-      opacity: 0.92;
-    }
-
-    .status-PATROUILLE {
-      background-color: #2563eb;
-    }
-
-    .status-INTERVENTION {
-      background-color: #dc2626;
-      transform: scale(1.12);
-    }
-
-    .status-DISPONIBLE {
-      background-color: #16a34a;
-    }
-
-    .status-PAUSE {
-      background-color: #d97706;
-    }
+    .status-PATROUILLE { background-color: var(--patrouille); }
+    .status-INTERVENTION { background-color: var(--intervention); transform: scale(1.12); }
+    .status-DISPONIBLE { background-color: var(--disponible); }
+    .status-PAUSE { background-color: var(--pause); }
   </style>
 </head>
 <body>
-  <aside id="sidebar">
-    <h2>Unités actives</h2>
-    <div id="units-list"></div>
-  </aside>
-  <main id="map"></main>
+  <header>
+    <div class="brand">
+      <span>Console Superviseur</span>
+      <span class="pill-project">operator-supervisor-ops</span>
+    </div>
+    <div class="header-stats">
+      <span>Unités suivies : <strong id="stat-total">0</strong></span>
+      <span>En intervention : <strong id="stat-interv">0</strong></span>
+      <span id="sync-indicator">Connexion Firestore...</span>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <!-- Colonne gauche : Unités en direct & filtres -->
+    <aside>
+      <div class="pane-header">
+        <span>Unités opérationnelles</span>
+        <span id="selected-unit-badge" style="font-size:11px;color:var(--accent);">Aucune sélection</span>
+      </div>
+      <div class="filter-bar" id="filter-bar">
+        <button class="filter-btn active" data-filter="ALL">Tous</button>
+        <button class="filter-btn" data-filter="PATROUILLE">Patrouille</button>
+        <button class="filter-btn" data-filter="INTERVENTION">Intervention</button>
+        <button class="filter-btn" data-filter="DISPONIBLE">Disponible</button>
+        <button class="filter-btn" data-filter="PAUSE">Pause</button>
+      </div>
+      <div class="scroll-list" id="units-list"></div>
+    </aside>
+
+    <!-- Centre : Carte Leaflet -->
+    <main class="map-wrap">
+      <div id="map"></div>
+      <div class="map-toolbar">
+        <button class="btn secondary" id="btn-toggle-history">Trajet unité : OFF</button>
+        <button class="btn secondary" id="btn-center-all">Recentrer</button>
+      </div>
+    </main>
+
+    <!-- Colonne droite : Dispatch & Main-Courante (MCI) -->
+    <section class="right-pane">
+      <div class="right-tabs">
+        <button class="tab-btn active" data-tab="dispatch">Dispatch</button>
+        <button class="tab-btn" data-tab="mci">Main-courante (MCI)</button>
+      </div>
+
+      <div class="tab-panel active" id="panel-dispatch">
+        <form class="dispatch-form" id="dispatch-form">
+          <input type="text" id="mission-title" placeholder="Intitulé de mission / intervention" required />
+          <select id="mission-unit">
+            <option value="">Unité à affecter (optionnel)</option>
+          </select>
+          <textarea id="mission-notes" rows="2" placeholder="Lieu, consignes, précision..."></textarea>
+          <button type="submit" class="btn">Créer & consigner au MCI</button>
+        </form>
+        <div class="scroll-list" id="missions-list"></div>
+      </div>
+
+      <div class="tab-panel" id="panel-mci">
+        <form class="dispatch-form" id="mci-form">
+          <input type="text" id="mci-text" placeholder="Nouvelle mention de main-courante..." required />
+          <button type="submit" class="btn">Ajouter au registre</button>
+        </form>
+        <div class="scroll-list" id="mci-list"></div>
+      </div>
+    </section>
+  </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-    import { getFirestore, collection, onSnapshot } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
+    import {
+      getFirestore,
+      collection,
+      addDoc,
+      onSnapshot,
+      query,
+      orderBy,
+      limit,
+      serverTimestamp
+    } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyCua2pik8r_B9bo8s-OqFQunFVPPwHbmCg",
@@ -151,10 +440,10 @@
     };
 
     const STATUS_CONFIG = {
-      PATROUILLE: { label: "En patrouille", badgeBg: "#dbeafe", badgeFg: "#1d4ed8" },
-      INTERVENTION: { label: "En intervention", badgeBg: "#fee2e2", badgeFg: "#b91c1c" },
-      DISPONIBLE: { label: "Disponible", badgeBg: "#dcfce7", badgeFg: "#15803d" },
-      PAUSE: { label: "En pause", badgeBg: "#fef3c7", badgeFg: "#b45309" }
+      PATROUILLE: { label: "En patrouille" },
+      INTERVENTION: { label: "En intervention" },
+      DISPONIBLE: { label: "Disponible" },
+      PAUSE: { label: "En pause" }
     };
 
     const app = initializeApp(firebaseConfig);
@@ -166,7 +455,18 @@
     }).addTo(map);
 
     const markers = new Map();
+    let allUnits = [];
+    let currentFilter = "ALL";
+    let selectedUnitId = null;
+    let showHistoryTrail = false;
+    let historyPolyline = null;
+    let unsubscribeHistory = null;
+
     const unitsListEl = document.getElementById("units-list");
+    const missionsListEl = document.getElementById("missions-list");
+    const mciListEl = document.getElementById("mci-list");
+    const missionUnitSelectEl = document.getElementById("mission-unit");
+    const syncIndicatorEl = document.getElementById("sync-indicator");
 
     function escapeHtml(value) {
       return String(value ?? "")
@@ -176,29 +476,18 @@
         .replaceAll('"', """);
     }
 
-    function getStatusConfig(statusCode) {
-      const normalized = String(statusCode || "PATROUILLE").toUpperCase();
-      return STATUS_CONFIG[normalized] || STATUS_CONFIG.PATROUILLE;
-    }
-
-    function formatEquipment(equipment) {
-      if (!Array.isArray(equipment) || equipment.length === 0) {
-        return "<li>Aucun matériel signalé</li>";
-      }
-      return equipment.map((item) => `<li>${escapeHtml(item)}</li>`).join("");
+    function normalizeStatus(code) {
+      const upper = String(code || "PATROUILLE").toUpperCase();
+      return Object.prototype.hasOwnProperty.call(STATUS_CONFIG, upper) ? upper : "PATROUILLE";
     }
 
     function createLabeledStatusIcon(unitName, statusCode, statusLabel) {
-      const normalized = String(statusCode || "PATROUILLE").toUpperCase();
-      const safeClass = Object.prototype.hasOwnProperty.call(STATUS_CONFIG, normalized)
-        ? `status-${normalized}`
-        : "status-PATROUILLE";
-
+      const st = normalizeStatus(statusCode);
       return L.divIcon({
         className: "",
         html: `
           <div class="unit-divicon-root">
-            <div class="unit-marker ${safeClass}"></div>
+            <div class="unit-marker status-${st}"></div>
             <div class="unit-label-box">
               <span class="unit-label-name">${escapeHtml(unitName)}</span>
               <span class="unit-label-status">${escapeHtml(statusLabel)}</span>
@@ -211,56 +500,125 @@
       });
     }
 
-    function renderSidebar(units) {
+    function clearHistoryListener() {
+      if (unsubscribeHistory) {
+        unsubscribeHistory();
+        unsubscribeHistory = null;
+      }
+      if (historyPolyline) {
+        map.removeLayer(historyPolyline);
+        historyPolyline = null;
+      }
+    }
+
+    function bindHistoryTrail(unitId) {
+      clearHistoryListener();
+      if (!showHistoryTrail || !unitId) return;
+
+      const histQuery = query(
+        collection(db, "live_positions", unitId, "history"),
+        orderBy("updatedAt", "desc"),
+        limit(50)
+      );
+
+      unsubscribeHistory = onSnapshot(histQuery, (snap) => {
+        const pts = [];
+        snap.forEach((docItem) => {
+          const d = docItem.data() || {};
+          if (typeof d.latitude === "number" && typeof d.longitude === "number") {
+            pts.push([d.latitude, d.longitude]);
+          }
+        });
+        pts.reverse();
+        if (historyPolyline) map.removeLayer(historyPolyline);
+        if (pts.length > 1) {
+          historyPolyline = L.polyline(pts, { color: "#38bdf8", weight: 3, dashArray: "6,6" }).addTo(map);
+        }
+      }, () => {});
+    }
+
+    function selectUnit(unitId, centerMap = true) {
+      selectedUnitId = unitId;
+      document.getElementById("selected-unit-badge").textContent = unitId || "Aucune sélection";
+      const unit = allUnits.find((u) => u.unitId === unitId);
+      if (unit && centerMap && typeof unit.latitude === "number" && typeof unit.longitude === "number") {
+        map.setView([unit.latitude, unit.longitude], 16);
+        markers.get(unitId)?.openPopup();
+      }
+      bindHistoryTrail(unitId);
+      renderUnitsList();
+    }
+
+    function renderUnitsList() {
+      const filtered = currentFilter === "ALL"
+        ? allUnits
+        : allUnits.filter((u) => u.operationalStatus === currentFilter);
+
+      document.getElementById("stat-total").textContent = String(allUnits.length);
+      document.getElementById("stat-interv").textContent = String(
+        allUnits.filter((u) => u.operationalStatus === "INTERVENTION").length
+      );
+
+      const previousSelection = missionUnitSelectEl.value;
+      missionUnitSelectEl.innerHTML = `<option value="">Unité à affecter (optionnel)</option>`;
+      for (const u of allUnits) {
+        const opt = document.createElement("option");
+        opt.value = u.unitId;
+        opt.textContent = `${u.unitName} (${u.unitId})`;
+        missionUnitSelectEl.appendChild(opt);
+      }
+      if (previousSelection) missionUnitSelectEl.value = previousSelection;
+
       unitsListEl.innerHTML = "";
-      if (units.length === 0) {
-        unitsListEl.innerHTML = "<p>Aucune unité active dans <code>live_positions</code>.</p>";
+      if (filtered.length === 0) {
+        unitsListEl.innerHTML = `<p style="color:var(--muted);font-size:13px;">Aucune unité pour ce filtre.</p>`;
         return;
       }
 
-      for (const unit of units) {
-        const cfg = getStatusConfig(unit.operationalStatus);
+      for (const unit of filtered) {
         const card = document.createElement("div");
-        card.className = "unit-card";
+        card.className = `unit-card ${unit.unitId === selectedUnitId ? "selected" : ""}`;
+        const equipHtml = unit.equipment.length
+          ? `<div class="equip-tags">${unit.equipment.map((eq) => `<span class="equip-tag">${escapeHtml(eq)}</span>`).join("")}</div>`
+          : "";
+
         card.innerHTML = `
-          <div><strong>${escapeHtml(unit.unitName)}</strong> <small>(${escapeHtml(unit.unitId)})</small></div>
-          <div style="margin-top:4px;">
-            <span class="badge" style="background:${cfg.badgeBg};color:${cfg.badgeFg};">
-              ${escapeHtml(unit.operationalStatusLabel)}
-            </span>
+          <div class="unit-top">
+            <div><strong>${escapeHtml(unit.unitName)}</strong> <small style="color:var(--muted);">(${escapeHtml(unit.unitId)})</small></div>
+            <span class="badge bg-${unit.operationalStatus}">${escapeHtml(unit.operationalStatusLabel)}</span>
           </div>
-          ${unit.missionNote ? `<div style="margin-top:6px;font-size:13px;">Note : ${escapeHtml(unit.missionNote)}</div>` : ""}
-          <ul class="equip-list">${formatEquipment(unit.equipment)}</ul>
+          <div class="unit-meta">
+            <span>${unit.speedKmh.toFixed(1)} km/h</span>
+            <span>${unit.isTracking ? "Actif" : "Arrêté"}</span>
+          </div>
+          ${unit.missionNote ? `<div style="margin-top:6px;font-size:12px;color:#cbd5e1;">${escapeHtml(unit.missionNote)}</div>` : ""}
+          ${equipHtml}
         `;
-        card.addEventListener("click", () => {
-          if (typeof unit.latitude === "number" && typeof unit.longitude === "number") {
-            map.setView([unit.latitude, unit.longitude], 16);
-            markers.get(unit.unitId)?.openPopup();
-          }
-        });
+        card.addEventListener("click", () => selectUnit(unit.unitId, true));
         unitsListEl.appendChild(card);
       }
     }
 
     onSnapshot(collection(db, "live_positions"), (snapshot) => {
-      const units = [];
-      const seenUnitIds = new Set();
+      syncIndicatorEl.textContent = "Firestore synchronisé";
+      const nextUnits = [];
+      const seenIds = new Set();
 
       snapshot.forEach((docSnap) => {
         const data = docSnap.data() || {};
         const unitId = String(data.unitId || docSnap.id);
         const unitName = String(data.unitName || unitId);
-        const operationalStatus = String(data.operationalStatus || "PATROUILLE").toUpperCase();
-        const cfg = getStatusConfig(operationalStatus);
-        const operationalStatusLabel = String(data.operationalStatusLabel || cfg.label);
+        const operationalStatus = normalizeStatus(data.operationalStatus);
+        const operationalStatusLabel = String(data.operationalStatusLabel || STATUS_CONFIG[operationalStatus].label);
         const equipment = Array.isArray(data.equipment) ? data.equipment : [];
         const missionNote = typeof data.missionNote === "string" ? data.missionNote : "";
         const lat = typeof data.latitude === "number" ? data.latitude : null;
         const lng = typeof data.longitude === "number" ? data.longitude : null;
-        const speedKmh = typeof data.speedKmh === "number" ? data.speedKmh.toFixed(1) : "0.0";
+        const speedKmh = typeof data.speedKmh === "number" ? data.speedKmh : 0;
+        const isTracking = Boolean(data.isTracking);
 
-        seenUnitIds.add(unitId);
-        units.push({
+        seenIds.add(unitId);
+        nextUnits.push({
           unitId,
           unitName,
           operationalStatus,
@@ -268,32 +626,33 @@
           equipment,
           missionNote,
           latitude: lat,
-          longitude: lng
+          longitude: lng,
+          speedKmh,
+          isTracking
         });
 
         if (lat !== null && lng !== null) {
           const popupHtml = `
-            <div>
+            <div style="color:#0f172a;font-size:13px;">
               <strong>${escapeHtml(unitName)}</strong> (${escapeHtml(unitId)})<br/>
               <strong>Statut :</strong> ${escapeHtml(operationalStatusLabel)}<br/>
-              <strong>Vitesse :</strong> ${speedKmh} km/h<br/>
-              ${missionNote ? `<strong>Note :</strong> ${escapeHtml(missionNote)}<br/>` : ""}
-              <strong>Matériel :</strong>
-              <ul class="equip-list">${formatEquipment(equipment)}</ul>
+              <strong>Vitesse :</strong> ${speedKmh.toFixed(1)} km/h<br/>${missionNote ? `<strong>Note :</strong> ${escapeHtml(missionNote)}<br/>` : ""}
+              <strong>Matériel :</strong> ${equipment.length ? escapeHtml(equipment.join(", ")) : "Aucun"}
             </div>
           `;
           const icon = createLabeledStatusIcon(unitName, operationalStatus, operationalStatusLabel);
 
           if (markers.has(unitId)) {
-            const marker = markers.get(unitId);
-            marker.setLatLng([lat, lng]);
-            marker.setIcon(icon);
-            marker.setPopupContent(popupHtml);
+            const m = markers.get(unitId);
+            m.setLatLng([lat, lng]);
+            m.setIcon(icon);
+            m.setPopupContent(popupHtml);
           } else {
-            const marker = L.marker([lat, lng], { icon })
+            const m = L.marker([lat, lng], { icon })
               .addTo(map)
-              .bindPopup(popupHtml);
-            markers.set(unitId, marker);
+              .bindPopup(popupHtml)
+              .on("click", () => selectUnit(unitId, false));
+            markers.set(unitId, m);
           }
         } else if (markers.has(unitId)) {
           map.removeLayer(markers.get(unitId));
@@ -301,5 +660,27 @@
         }
       });
 
-      for (const [existingId, marker] of markers.entries()) {
-        if (!seenUnitIds.has(existingId))
+      for (const [id, marker] of markers.entries()) {
+        if (!seenIds.has(id)) {
+          map.removeLayer(marker);
+          markers.delete(id);
+        }
+      }
+
+      allUnits = nextUnits;
+      renderUnitsList();
+    }, (err) => {
+      syncIndicatorEl.textContent = "Erreur Firestore";
+      console.error(err);
+    });
+
+    // Missions / Dispatch
+    onSnapshot(query(collection(db, "missions"), orderBy("createdAt", "desc"), limit(30)), (snap) => {
+      missionsListEl.innerHTML = "";
+      snap.forEach((d) => {
+        const m = d.data() || {};
+        const el = document.createElement("div");
+        el.className = "mission-item";
+        el.innerHTML = `
+          <div><strong>${escapeHtml(m.title || "Mission")}</strong></div>
+          <div style="color:var(--muted);margin-top:3px;">Unité : ${escapeHtml(m.unitId || "Non affectée")}
