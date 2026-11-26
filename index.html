@@ -87,6 +87,18 @@
         transform: scale(1.15);
       }
     }
+    @keyframes missionBeaconPulse {
+      0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.95), 0 0 14px rgba(245, 158, 11, 0.9);
+        background: #f59e0b;
+      }
+      50% {
+        transform: scale(1.25);
+        box-shadow: 0 0 0 14px rgba(245, 158, 11, 0), 0 0 6px rgba(245, 158, 11, 0.4);
+        background: #ef4444;
+      }
+    }
 
     .sos-banner {
       display: none;
@@ -145,7 +157,7 @@
     .col-map { flex: 1; position: relative; background: #1e293b; min-width: 0; }
     #map { width: 100%; height: 100%; }
     .col-right {
-      width: 295px;
+      width: 305px;
       background: #1e293b;
       border-left: 1px solid #334155;
       display: flex;
@@ -332,6 +344,17 @@
       cursor: pointer;
     }
     .btn.sec { background: #1e293b; color: #f8fafc; border: 1px solid #334155; }
+    .btn.geo {
+      background: #1e293b;
+      color: #fbbf24;
+      border: 1px solid rgba(251, 191, 36, 0.5);
+      padding: 5px 8px;
+      font-size: 11px;
+      white-space: nowrap;
+    }
+    .btn.geo:hover {
+      background: rgba(251, 191, 36, 0.16);
+    }
     .tabs { display: flex; background: #162032; border-bottom: 1px solid #334155; }
     .tbtn {
       flex: 1;
@@ -355,6 +378,19 @@
       flex-direction: column;
       gap: 6px;
     }
+    .addr-row {
+      display: flex;
+      gap: 5px;
+      align-items: center;
+    }
+    .geo-status {
+      font-size: 10px;
+      color: #94a3b8;
+      line-height: 1.3;
+      min-height: 14px;
+    }
+    .geo-status.ok { color: #4ade80; }
+    .geo-status.warn { color: #fbbf24; }
     input, select, textarea {
       width: 100%;
       background: #0f172a;
@@ -396,6 +432,13 @@
       padding: 7px 9px;
       margin-bottom: 6px;
       font-size: 11px;
+    }
+    .item.mission-located {
+      border-left-color: #f59e0b;
+      cursor: pointer;
+    }
+    .item.mission-located:hover {
+      border-color: #fbbf24;
     }
     .item.mci-st-PATROUILLE {
       border-left-color: #2563eb;
@@ -506,6 +549,34 @@
     .marker-wrap.zoom-far .marker-dot { width: 12px; height: 12px; border-width: 2px; }
     .marker-wrap.zoom-far .marker-tag { display: none; }
     .marker-wrap.zoom-mid .marker-tag { top: 22px; font-size: 9px; padding: 1px 5px; }
+
+    .mission-beacon-wrap { position: relative; width: 24px; height: 24px; }
+    .mission-beacon-dot {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      transform: rotate(45deg);
+      border: 2px solid #ffffff;
+      animation: missionBeaconPulse 0.9s infinite;
+    }
+    .mission-beacon-tag {
+      position: absolute;
+      top: 32px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(120, 53, 15, 0.95);
+      color: #fef3c7;
+      border: 1px solid #fbbf24;
+      padding: 2px 7px;
+      border-radius: 5px;
+      font-size: 10px;
+      font-weight: 800;
+      white-space: nowrap;
+      pointer-events: none;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+    }
+    .mission-beacon-wrap.zoom-far .mission-beacon-tag { display: none; }
   </style>
 </head>
 <body>
@@ -571,7 +642,13 @@
         <form class="box" id="f-dispatch">
           <select id="m-unit"><option value="">1. Unité (optionnel)</option></select>
           <input type="text" id="m-title" placeholder="2. Intitulé de mission" required />
-          <textarea id="m-notes" rows="2" placeholder="3. Lieux / consignes / adresses"></textarea>
+          <input type="text" id="m-city" placeholder="3. Ville (gestion multiville)" />
+          <div class="addr-row">
+            <input type="text" id="m-address" placeholder="4. Adresse d'intervention" />
+            <button type="button" class="btn geo" id="btn-geocode">Localiser</button>
+          </div>
+          <div class="geo-status" id="geo-status">Saisir ville et/ou adresse pour placer un point sur la carte.</div>
+          <textarea id="m-notes" rows="2" placeholder="5. Consignes complémentaires"></textarea>
           <button type="submit" class="btn">Dispatcher & MCI</button>
         </form>
         <div class="scroll" id="missions-box"></div>
@@ -596,7 +673,7 @@
   <script>
     window.supMap = null;
     if (typeof L !== "undefined") {
-      window.supMap = L.map("map").setView([48.6918631, 2.3108942], 14);
+      window.supMap = L.map("map").setView([48.6918631, 2.3108942], 13);
       L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
         maxZoom: 19,
         attribution: "© OpenStreetMap"
@@ -746,12 +823,17 @@
       const missionsBox = document.getElementById("missions-box");
       const mciBox = document.getElementById("mci-box");
       const mUnitSel = document.getElementById("m-unit");
+      const mCityInput = document.getElementById("m-city");
+      const mAddressInput = document.getElementById("m-address");
+      const btnGeocode = document.getElementById("btn-geocode");
+      const geoStatusEl = document.getElementById("geo-status");
       const sosBanner = document.getElementById("sos-banner");
       const sosBannerTitle = document.getElementById("sos-banner-title");
       const sosBannerAddr = document.getElementById("sos-banner-addr");
       const btnSound = document.getElementById("btn-sound");
 
       const markers = new Map();
+      const missionMarkers = new Map();
       const lastKnownStatus = new Map();
       const pendingEndOfServiceDeletes = new Set();
       const pendingManualDeletes = new Set();
@@ -767,6 +849,7 @@
       let trailLine = null;
       let unsubTrail = null;
       let fittedOnce = false;
+      let draftGeoResult = null;
 
       // Gestion alarme sonore SOS (Web Audio API)
       let audioCtx = null;
@@ -887,7 +970,7 @@
       }
 
       function getZoomTier() {
-        const z = map && typeof map.getZoom === "function" ? map.getZoom() : 14;
+        const z = map && typeof map.getZoom === "function" ? map.getZoom() : 13;
         if (z <= 12) return "far";
         if (z <= 14) return "mid";
         return "near";
@@ -926,6 +1009,71 @@
         });
       }
 
+      function makeMissionIcon(title, fullAddress) {
+        const tier = getZoomTier();
+        const wrap = document.createElement("div");
+        wrap.className = tier === "near" ? "mission-beacon-wrap" : `mission-beacon-wrap zoom-${tier}`;
+
+        const dot = document.createElement("div");
+        dot.className = "mission-beacon-dot";
+
+        const tag = document.createElement("div");
+        tag.className = "mission-beacon-tag";
+        tag.textContent = `INTERVENTION · ${String(title || "Mission")}`;
+
+        if (fullAddress) {
+          const sub = document.createElement("span");
+          sub.className = "marker-sub";
+          sub.textContent = fullAddress;
+          tag.appendChild(sub);
+        }
+
+        wrap.appendChild(dot);
+        wrap.appendChild(tag);
+
+        return L.divIcon({
+          className: "",
+          html: wrap.outerHTML,
+          iconSize: [24, 24],
+          iconAnchor: [12, 12],
+          popupAnchor: [0, -14]
+        });
+      }
+
+      function makeMissionPopupNode(m, fullAddress) {
+        const container = document.createElement("div");
+        container.style.color = "#0f172a";
+        container.style.fontSize = "12px";
+
+        const title = document.createElement("strong");
+        title.style.color = "#b45309";
+        title.textContent = `INTERVENTION · ${String(m.title || "Mission")}`;
+        container.appendChild(title);
+        container.appendChild(document.createElement("br"));
+
+        if (m.unitId) {
+          const uLine = document.createElement("span");
+          uLine.textContent = `Unité : ${m.unitId}`;
+          container.appendChild(uLine);
+          container.appendChild(document.createElement("br"));
+        }
+
+        if (fullAddress) {
+          const aLine = document.createElement("strong");
+          aLine.textContent = `Lieu : ${fullAddress}`;
+          container.appendChild(aLine);
+          container.appendChild(document.createElement("br"));
+        }
+
+        if (m.notes) {
+          const nLine = document.createElement("span");
+          nLine.textContent = `Consignes : ${m.notes}`;
+          container.appendChild(nLine);
+        }
+
+        return container;
+      }
+
       function refreshMarkersZoom() {
         if (!map || typeof L === "undefined") return;
         units.forEach((u) => {
@@ -934,11 +1082,100 @@
             m.setIcon(makeIcon(u.id, u.status, u.label, u.crewCount, u.sosActive));
           }
         });
+        missionMarkers.forEach((entry) => {
+          entry.marker.setIcon(makeMissionIcon(entry.title, entry.fullAddress));
+        });
       }
 
       if (map && typeof map.on === "function") {
         map.on("zoomend", refreshMarkersZoom);
       }
+
+      async function geocodeLocation(city, address) {
+        const cleanCity = (city || "").trim();
+        const cleanAddr = (address || "").trim();
+        if (!cleanCity && !cleanAddr) return null;
+
+        const queries = [];
+        if (cleanAddr && cleanCity) {
+          queries.push(`${cleanAddr}, ${cleanCity}, France`);
+          queries.push(`${cleanCity}, France`);
+        } else if (cleanAddr) {
+          queries.push(`${cleanAddr}, France`);
+        } else {
+          queries.push(`${cleanCity}, France`);
+        }
+
+        for (let i = 0; i < queries.length; i += 1) {
+          const qText = queries[i];
+          const isFallbackCity = (i > 0 && cleanAddr && cleanCity);
+          try {
+            const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=fr&q=${encodeURIComponent(qText)}`;
+            const resp = await fetch(url, {
+              headers: { "Accept": "application/json" }
+            });
+            if (!resp.ok) continue;
+            const data = await resp.json();
+            if (Array.isArray(data) && data.length > 0) {
+              const lat = Number(data[0].lat);
+              const lng = Number(data[0].lon);
+              if (Number.isFinite(lat) && Number.isFinite(lng)) {
+                const resolvedLabel = cleanAddr
+                  ? `${cleanAddr}${cleanCity ? `, ${cleanCity}` : ""}`
+                  : cleanCity;
+                return {
+                  lat,
+                  lng,
+                  city: cleanCity,
+                  address: cleanAddr,
+                  fullAddress: resolvedLabel,
+                  displayName: String(data[0].display_name || resolvedLabel),
+                  isFallbackCity
+                };
+              }
+            }
+          } catch (err) {
+            console.warn("Géocodage Nominatim:", err);
+          }
+        }
+        return null;
+      }
+
+      function setGeoFeedback(text, kind = "") {
+        geoStatusEl.textContent = text;
+        geoStatusEl.className = `geo-status${kind ? ` ${kind}` : ""}`;
+      }
+
+      mCityInput.addEventListener("input", () => { draftGeoResult = null; });
+      mAddressInput.addEventListener("input", () => { draftGeoResult = null; });
+
+      btnGeocode.addEventListener("click", async () => {
+        const city = mCityInput.value.trim();
+        const address = mAddressInput.value.trim();
+        if (!city && !address) {
+          setGeoFeedback("Renseignez au moins une ville ou une adresse.", "warn");
+          return;
+        }
+        btnGeocode.disabled = true;
+        setGeoFeedback("Résolution de l'adresse en cours...");
+        const res = await geocodeLocation(city, address);
+        btnGeocode.disabled = false;
+
+        if (res) {
+          draftGeoResult = res;
+          if (res.isFallbackCity) {
+            setGeoFeedback(`Adresse précise non trouvée : point placé sur ${city}.`, "warn");
+          } else {
+            setGeoFeedback(`Point résolu : ${res.fullAddress}`, "ok");
+          }
+          if (map && typeof L !== "undefined") {
+            map.setView([res.lat, res.lng], 15);
+          }
+        } else {
+          draftGeoResult = null;
+          setGeoFeedback("Adresse introuvable (le dispatch reste possible).", "warn");
+        }
+      });
 
       function makePopupNode(id, label, crewCount, speed, equipment, sosActive, sosAddress) {
         const container = document.createElement("div");
@@ -1008,9 +1245,16 @@
 
       function fitAllUnits() {
         if (!map || typeof L === "undefined") return;
-        const pts = units
-          .filter((u) => typeof u.lat === "number" && typeof u.lng === "number")
-          .map((u) => [u.lat, u.lng]);
+        const pts = [];
+        units.forEach((u) => {
+          if (typeof u.lat === "number" && typeof u.lng === "number") {
+            pts.push([u.lat, u.lng]);
+          }
+        });
+        missionMarkers.forEach((entry) => {
+          const ll = entry.marker.getLatLng();
+          if (ll) pts.push([ll.lat, ll.lng]);
+        });
         if (pts.length > 0) {
           map.fitBounds(pts, { padding: [36, 36], maxZoom: 15 });
         }
@@ -1292,6 +1536,11 @@
           archivedAt: serverTimestamp()
         });
 
+        if (missionMarkers.has(missionId) && map) {
+          map.removeLayer(missionMarkers.get(missionId).marker);
+          missionMarkers.delete(missionId);
+        }
+
         await addDoc(collection(db, "mci_logs"), {
           unitId: m.unitId || "",
           type: "ARCHIVE",
@@ -1488,12 +1737,47 @@
 
       onSnapshot(query(collection(db, "missions"), orderBy("createdAt", "desc"), limit(30)), (snap) => {
         missionsBox.textContent = "";
+        const activeMissionIds = new Set();
+
         snap.forEach((d) => {
           const m = d.data() || {};
           if (m.archived === true) return;
+          activeMissionIds.add(d.id);
+
+          const city = String(m.city || "").trim();
+          const addr = String(m.address || "").trim();
+          const fullAddress = String(m.fullAddress || (addr && city ? `${addr}, ${city}` : (addr || city)));
+          const mLat = typeof m.latitude === "number" ? m.latitude : null;
+          const mLng = typeof m.longitude === "number" ? m.longitude : null;
+          const hasCoords = mLat !== null && mLng !== null;
+
+          if (hasCoords && map && typeof L !== "undefined") {
+            const popNode = makeMissionPopupNode(m, fullAddress);
+            const icon = makeMissionIcon(m.title || "Mission", fullAddress);
+            if (missionMarkers.has(d.id)) {
+              const entry = missionMarkers.get(d.id);
+              entry.marker.setLatLng([mLat, mLng]);
+              entry.marker.setIcon(icon);
+              entry.marker.setPopupContent(popNode);
+              entry.title = m.title || "Mission";
+              entry.fullAddress = fullAddress;
+            } else {
+              const mk = L.marker([mLat, mLng], { icon, zIndexOffset: 250 })
+                .addTo(map)
+                .bindPopup(popNode);
+              missionMarkers.set(d.id, {
+                marker: mk,
+                title: m.title || "Mission",
+                fullAddress
+              });
+            }
+          } else if (missionMarkers.has(d.id) && map) {
+            map.removeLayer(missionMarkers.get(d.id).marker);
+            missionMarkers.delete(d.id);
+          }
 
           const el = document.createElement("div");
-          el.className = "item";
+          el.className = hasCoords ? "item mission-located" : "item";
 
           const uLine = document.createElement("div");
           uLine.style.color = "#38bdf8";
@@ -1507,12 +1791,30 @@
           title.textContent = m.title || "Mission";
           el.appendChild(title);
 
+          if (fullAddress) {
+            const locLine = document.createElement("div");
+            locLine.style.color = hasCoords ? "#fbbf24" : "#cbd5e1";
+            locLine.style.fontWeight = "600";
+            locLine.style.marginTop = "3px";
+            locLine.textContent = hasCoords ? `Point : ${fullAddress}` : `Lieu : ${fullAddress}`;
+            el.appendChild(locLine);
+          }
+
           if (m.notes) {
             const nLine = document.createElement("div");
             nLine.style.color = "#cbd5e1";
             nLine.style.marginTop = "3px";
             nLine.textContent = m.notes;
             el.appendChild(nLine);
+          }
+
+          if (hasCoords) {
+            el.addEventListener("click", () => {
+              if (map) {
+                map.setView([mLat, mLng], 16);
+                missionMarkers.get(d.id)?.marker.openPopup();
+              }
+            });
           }
 
           if (m.acknowledgedBy) {
@@ -1530,7 +1832,8 @@
             btnArch.type = "button";
             btnArch.className = "btn-archive";
             btnArch.textContent = "Archiver";
-            btnArch.addEventListener("click", async () => {
+            btnArch.addEventListener("click", async (e) => {
+              e.stopPropagation();
               btnArch.disabled = true;
               btnArch.textContent = "Archivage...";
               try {
@@ -1548,6 +1851,15 @@
 
           missionsBox.appendChild(el);
         });
+
+        if (map) {
+          missionMarkers.forEach((entry, mid) => {
+            if (!activeMissionIds.has(mid)) {
+              map.removeLayer(entry.marker);
+              missionMarkers.delete(mid);
+            }
+          });
+        }
       }, (err) => console.warn("missions:", err));
 
       onSnapshot(query(collection(db, "mci_logs"), orderBy("createdAt", "desc"), limit(80)), (snap) => {
@@ -1563,15 +1875,49 @@
         e.preventDefault();
         const unitId = mUnitSel.value.trim();
         const title = document.getElementById("m-title").value.trim();
+        const city = mCityInput.value.trim();
+        const address = mAddressInput.value.trim();
         const notes = document.getElementById("m-notes").value.trim();
         if (!title) return;
-        await addDoc(collection(db, "missions"), { unitId, title, notes, status: "OUVERTE", createdAt: serverTimestamp() });
+
+        let geo = draftGeoResult;
+        if (!geo && (city || address)) {
+          setGeoFeedback("Résolution de l'adresse en cours...");
+          geo = await geocodeLocation(city, address);
+        }
+
+        const fullAddress = geo?.fullAddress || (address && city ? `${address}, ${city}` : (address || city));
+        const missionPayload = {
+          unitId,
+          title,
+          city,
+          address,
+          fullAddress,
+          notes,
+          status: "OUVERTE",
+          createdAt: serverTimestamp()
+        };
+        if (geo && Number.isFinite(geo.lat) && Number.isFinite(geo.lng)) {
+          missionPayload.latitude = geo.lat;
+          missionPayload.longitude = geo.lng;
+        }
+
+        await addDoc(collection(db, "missions"), missionPayload);
+
+        const locPart = fullAddress ? ` [${fullAddress}]` : "";
         await addDoc(collection(db, "mci_logs"), {
           unitId,
           type: "DISPATCH",
-          message: `Dispatch : ${title}${unitId ? ` -> ${unitId}` : ""}${notes ? ` (${notes})` : ""}`,
+          message: `Dispatch : ${title}${unitId ? ` -> ${unitId}` : ""}${locPart}${notes ? ` (${notes})` : ""}`,
           createdAt: serverTimestamp()
         });
+
+        if (geo && map && typeof L !== "undefined") {
+          map.setView([geo.lat, geo.lng], 15);
+        }
+
+        draftGeoResult = null;
+        setGeoFeedback("Saisir ville et/ou adresse pour placer un point sur la carte.");
         e.target.reset();
       });
 
