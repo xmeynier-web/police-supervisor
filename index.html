@@ -496,18 +496,61 @@
     async function loadFirebaseSdk() {
       try {
         const appMod = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js");
+        const authMod = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js");
         const fsMod = await import("https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js");
-        return { ...appMod, ...fsMod };
+        return { ...appMod, ...authMod, ...fsMod };
       } catch (_) {
         const appMod = await import("https://cdn.jsdelivr.net/npm/firebase@10.14.1/firebase-app.js");
+        const authMod = await import("https://cdn.jsdelivr.net/npm/firebase@10.14.1/firebase-auth.js");
         const fsMod = await import("https://cdn.jsdelivr.net/npm/firebase@10.14.1/firebase-firestore.js");
-        return { ...appMod, ...fsMod };
+        return { ...appMod, ...authMod, ...fsMod };
       }
+    }
+
+    async function ensureAuthenticatedUser(auth, onAuthStateChanged, signInAnonymously) {
+      if (auth.currentUser) {
+        return auth.currentUser;
+      }
+      await signInAnonymously(auth);
+      if (auth.currentUser) {
+        return auth.currentUser;
+      }
+      return await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          unsub();
+          reject(new Error("Délai dépassé lors de la connexion anonyme Firebase."));
+        }, 8000);
+        const unsub = onAuthStateChanged(auth, (user) => {
+          if (user) {
+            clearTimeout(timer);
+            unsub();
+            resolve(user);
+          }
+        }, (err) => {
+          clearTimeout(timer);
+          unsub();
+          reject(err);
+        });
+      });
     }
 
     try {
       const {
-        initializeApp, getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, query, orderBy, limit, serverTimestamp
+        initializeApp,
+        getAuth,
+        onAuthStateChanged,
+        signInAnonymously,
+        getFirestore,
+        collection,
+        doc,
+        addDoc,
+        updateDoc,
+        deleteDoc,
+        onSnapshot,
+        query,
+        orderBy,
+        limit,
+        serverTimestamp
       } = await loadFirebaseSdk();
 
       const firebaseConfig = {
@@ -530,6 +573,9 @@
       };
 
       const app = initializeApp(firebaseConfig);
+      const auth = getAuth(app);
+      await ensureAuthenticatedUser(auth, onAuthStateChanged, signInAnonymously);
+
       const db = getFirestore(app);
       const map = window.supMap;
 
