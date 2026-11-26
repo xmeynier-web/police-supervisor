@@ -440,6 +440,31 @@
     .item.mission-located:hover {
       border-color: #fbbf24;
     }
+    .mission-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 6px;
+    }
+    .btn-del-mission {
+      background: rgba(15, 23, 42, 0.85);
+      color: #fca5a5;
+      border: 1px solid rgba(248, 113, 113, 0.45);
+      border-radius: 5px;
+      padding: 2px 6px;
+      font-size: 10px;
+      font-weight: 700;
+      cursor: pointer;
+      line-height: 1.2;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    .btn-del-mission:hover,
+    .btn-del-mission.confirm {
+      background: #dc2626;
+      color: #ffffff;
+      border-color: #ffffff;
+    }
     .item.mci-st-PATROUILLE {
       border-left-color: #2563eb;
       border-color: rgba(37, 99, 235, 0.58);
@@ -856,8 +881,11 @@
       const lastKnownStatus = new Map();
       const pendingEndOfServiceDeletes = new Set();
       const pendingManualDeletes = new Set();
+      const pendingMissionDeletes = new Set();
       let armedDeleteUnitId = null;
       let armedDeleteTimer = null;
+      let armedDeleteMissionId = null;
+      let armedDeleteMissionTimer = null;
       let initialUnitsLoaded = false;
       let units = [];
       let mciEntries = [];
@@ -1492,6 +1520,7 @@
           const isStatus = x.type === "STATUS_CHANGE" || msg.startsWith("Statut :");
           const isAck = x.type === "ACK" || msg.startsWith("Validé par ");
           const isArchive = x.type === "ARCHIVE" || msg.startsWith("Archivage intervention :");
+          const isDeleteMission = x.type === "DELETE_MISSION" || msg.startsWith("Suppression intervention par CSU");
           const stCode = isStatus ? inferStatusFromEntry(x) : null;
 
           const el = document.createElement("div");
@@ -1534,6 +1563,11 @@
             archBadge.className = "mci-badge st-PAUSE";
             archBadge.textContent = "Archivé";
             head.appendChild(archBadge);
+          } else if (isDeleteMission) {
+            const delBadge = document.createElement("span");
+            delBadge.className = "mci-badge st-INTERVENTION";
+            delBadge.textContent = "Supprimée";
+            head.appendChild(delBadge);
           }
 
           const msgDiv = document.createElement("div");
@@ -1567,6 +1601,44 @@
           message: `Archivage intervention : ${title}${unitLabel}${ackLabel}`,
           createdAt: serverTimestamp()
         });
+      }
+
+      async function deleteMissionFromSupervisor(missionId, m) {
+        if (pendingMissionDeletes.has(missionId)) return;
+        pendingMissionDeletes.add(missionId);
+
+        if (armedDeleteMissionId === missionId) {
+          armedDeleteMissionId = null;
+          if (armedDeleteMissionTimer) {
+            clearTimeout(armedDeleteMissionTimer);
+            armedDeleteMissionTimer = null;
+          }
+        }
+
+        const title = String(m.title || "Mission");
+        const unitPart = m.unitId ? ` (${m.unitId})` : "";
+        const locPart = m.fullAddress || [m.address, m.city].filter(Boolean).join(", ");
+        const locSuffix = locPart ? ` · ${locPart}` : "";
+
+        try {
+          await deleteDoc(doc(db, "missions", missionId));
+
+          if (missionMarkers.has(missionId) && map) {
+            map.removeLayer(missionMarkers.get(missionId).marker);
+            missionMarkers.delete(missionId);
+          }
+
+          await addDoc(collection(db, "mci_logs"), {
+            unitId: m.unitId || "",
+            type: "DELETE_MISSION",
+            message: `Suppression intervention par CSU : ${title}${unitPart}${locSuffix}`,
+            createdAt: serverTimestamp()
+          });
+        } catch (err) {
+          console.warn("Suppression intervention CSU:", err);
+        } finally {
+          pendingMissionDeletes.delete(missionId);
+        }
       }
 
       async function removeUnitOnEndOfService(docId, unitId, prevLabel, endLabel, crewCount) {
@@ -1799,17 +1871,52 @@
           const el = document.createElement("div");
           el.className = hasCoords ? "item mission-located" : "item";
 
+          const mHead = document.createElement("div");
+          mHead.className = "mission-head";
+
+          const mHeadLeft = document.createElement("div");
+          mHeadLeft.style.flex = "1";
+          mHeadLeft.style.minWidth = "0";
+
           const uLine = document.createElement("div");
           uLine.style.color = "#38bdf8";
           uLine.style.fontWeight = "700";
           uLine.textContent = `Unité : ${m.unitId || "Non affectée"}`;
-          el.appendChild(uLine);
+          mHeadLeft.appendChild(uLine);
 
           const title = document.createElement("strong");
           title.style.display = "block";
           title.style.marginTop = "2px";
           title.textContent = m.title || "Mission";
-          el.appendChild(title);
+          mHeadLeft.appendChild(title);
+
+          const isConfirmDel = armedDeleteMissionId === d.id;
+          const isDeletingMission = pendingMissionDeletes.has(d.id);
+          const btnDelMission = document.createElement("button");
+          btnDelMission.type = "button";
+          btnDelMission.className = `btn-del-mission${isConfirmDel ? " confirm" : ""}`;
+          btnDelMission.title = "Supprimer cette intervention";
+          btnDelMission.disabled = isDeletingMission;
+          btnDelMission.textContent = isDeletingMission ? "..." : (isConfirmDel ? "Confirmer ?" : "🗑");
+          btnDelMission.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            if (isDeletingMission) return;
+            if (armedDeleteMissionId !== d.id) {
+              armedDeleteMissionId = d.id;
+              if (armedDeleteMissionTimer) clearTimeout(armedDeleteMissionTimer);
+              armedDeleteMissionTimer = setTimeout(() => {
+                if (armedDeleteMissionId === d.id) {
+                  armedDeleteMissionId = null;
+                }
+              }, 3500);
+              return;
+            }
+            await deleteMissionFromSupervisor(d.id, m);
+          });
+
+          mHead.appendChild(mHeadLeft);
+          mHead.appendChild(btnDelMission);
+          el.appendChild(mHead);
 
           if (fullAddress) {
             const locLine = document.createElement("div");
