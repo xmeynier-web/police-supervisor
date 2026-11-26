@@ -576,7 +576,26 @@
       text-align: center;
       box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
     }
+    .mission-beacon-wrap.zoom-far { width: 13px; height: 13px; }
+    .mission-beacon-wrap.zoom-far .mission-beacon-dot {
+      width: 13px;
+      height: 13px;
+      border-radius: 3px;
+      border-width: 1.5px;
+    }
     .mission-beacon-wrap.zoom-far .mission-beacon-tag { display: none; }
+    .mission-beacon-wrap.zoom-mid { width: 18px; height: 18px; }
+    .mission-beacon-wrap.zoom-mid .mission-beacon-dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 5px;
+      border-width: 2px;
+    }
+    .mission-beacon-wrap.zoom-mid .mission-beacon-tag {
+      top: 25px;
+      font-size: 9px;
+      padding: 1px 5px;
+    }
   </style>
 </head>
 <body>
@@ -1031,12 +1050,13 @@
         wrap.appendChild(dot);
         wrap.appendChild(tag);
 
+        const pxSize = tier === "far" ? 13 : (tier === "mid" ? 18 : 24);
         return L.divIcon({
           className: "",
           html: wrap.outerHTML,
-          iconSize: [24, 24],
-          iconAnchor: [12, 12],
-          popupAnchor: [0, -14]
+          iconSize: [pxSize, pxSize],
+          iconAnchor: [pxSize / 2, pxSize / 2],
+          popupAnchor: [0, -(pxSize / 2 + 4)]
         });
       }
 
