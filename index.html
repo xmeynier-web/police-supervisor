@@ -40,11 +40,102 @@
       color: #38bdf8;
       border: 1px solid rgba(56, 189, 248, 0.35);
     }
-    .stats { display: flex; gap: 14px; font-size: 13px; color: #94a3b8; }
+    .stats { display: flex; align-items: center; gap: 14px; font-size: 13px; color: #94a3b8; }
     .stats strong { color: #f8fafc; }
+    .sound-btn {
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid #334155;
+      background: #1e293b;
+      color: #f8fafc;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+    }
+    .sound-btn.on {
+      border-color: #22c55e;
+      color: #4ade80;
+    }
+
+    @keyframes sosBannerPulse {
+      0%, 100% { background: #dc2626; border-color: #ffffff; }
+      50% { background: #7f1d1d; border-color: #fca5a5; }
+    }
+    @keyframes sosCardFlash {
+      0%, 100% {
+        background: rgba(220, 38, 38, 0.85);
+        border-color: #ffffff;
+        box-shadow: 0 0 18px rgba(239, 68, 68, 0.9);
+      }
+      50% {
+        background: rgba(127, 29, 29, 0.45);
+        border-color: #ef4444;
+        box-shadow: 0 0 4px rgba(239, 68, 68, 0.3);
+      }
+    }
+    @keyframes sosMarkerPulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.95), 0 0 12px #ef4444;
+        transform: scale(1.15);
+      }
+      70% {
+        box-shadow: 0 0 0 18px rgba(239, 68, 68, 0), 0 0 18px #ef4444;
+        transform: scale(1.3);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0), 0 0 12px #ef4444;
+        transform: scale(1.15);
+      }
+    }
+
+    .sos-banner {
+      display: none;
+      padding: 10px 16px;
+      border-bottom: 2px solid #ffffff;
+      color: #ffffff;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      animation: sosBannerPulse 0.8s infinite;
+      flex-shrink: 0;
+    }
+    .sos-banner.active {
+      display: flex;
+    }
+    .sos-banner-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .sos-banner-title {
+      font-size: 14px;
+      font-weight: 900;
+      letter-spacing: 0.4px;
+    }
+    .sos-banner-addr {
+      font-size: 12px;
+      font-weight: 600;
+      color: #fef2f2;
+    }
+    .sos-banner-actions {
+      display: flex;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .sos-btn-action {
+      background: #0f172a;
+      color: #ffffff;
+      border: 1px solid #ffffff;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 11px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
     .main-layout { flex: 1; display: flex; min-height: 0; width: 100%; }
     .col-left {
-      width: 275px;
+      width: 280px;
       background: #1e293b;
       border-right: 1px solid #334155;
       display: flex;
@@ -54,7 +145,7 @@
     .col-map { flex: 1; position: relative; background: #1e293b; min-width: 0; }
     #map { width: 100%; height: 100%; }
     .col-right {
-      width: 285px;
+      width: 295px;
       background: #1e293b;
       border-left: 1px solid #334155;
       display: flex;
@@ -143,9 +234,24 @@
       border-color: rgba(71, 85, 105, 0.68);
       background: linear-gradient(90deg, rgba(71, 85, 105, 0.38) 0%, rgba(71, 85, 105, 0.14) 55%, #162032 100%);
     }
+    .card.sos-alert-card {
+      border-left-color: #ffffff;
+      animation: sosCardFlash 0.7s infinite;
+    }
     .card.selected {
       border-color: #ffffff;
       box-shadow: 0 0 0 2px #38bdf8, 0 6px 14px rgba(0, 0, 0, 0.45);
+    }
+
+    .sos-card-box {
+      margin-top: 6px;
+      padding: 5px 7px;
+      border-radius: 6px;
+      background: rgba(15, 23, 42, 0.85);
+      border: 1px solid #ffffff;
+      color: #fef2f2;
+      font-size: 11px;
+      font-weight: 700;
     }
 
     .card-head { display: flex; justify-content: space-between; align-items: center; gap: 4px; }
@@ -175,6 +281,7 @@
     .st-DISPONIBLE { background: #16a34a; color: #fff; }
     .st-PAUSE { background: #d97706; color: #fff; }
     .st-FIN_DE_SERVICE { background: #475569; color: #f8fafc; }
+    .st-SOS { background: #dc2626; color: #ffffff; border: 1px solid #ffffff; }
 
     .meta { margin-top: 5px; font-size: 11px; color: #e2e8f0; display: flex; justify-content: space-between; }
     .tags { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 4px; }
@@ -302,6 +409,12 @@
       border-color: rgba(71, 85, 105, 0.68);
       background: linear-gradient(90deg, rgba(71, 85, 105, 0.38) 0%, #162032 80%);
     }
+    .item.sos-log {
+      border-left-color: #ffffff;
+      border-color: #ef4444;
+      background: linear-gradient(90deg, rgba(220, 38, 38, 0.58) 0%, rgba(127, 29, 29, 0.35) 70%, #162032 100%);
+      font-weight: 700;
+    }
     .item.ack-log {
       border-left-color: #16a34a;
       background: linear-gradient(90deg, rgba(22, 163, 74, 0.24) 0%, #162032 80%);
@@ -344,16 +457,26 @@
       white-space: nowrap;
     }
     .time { color: #38bdf8; font-family: monospace; font-size: 10px; }
-    .marker-wrap { position: relative; width: 20px; height: 20px; }
+    .marker-wrap { position: relative; width: 22px; height: 22px; }
     .marker-dot {
-      width: 20px; height: 20px; border-radius: 50%;
+      width: 22px; height: 22px; border-radius: 50%;
       border: 3px solid #fff; box-shadow: 0 2px 5px rgba(0,0,0,0.45);
     }
+    .marker-dot.sos-marker-dot {
+      background: #ef4444;
+      border: 3px solid #ffffff;
+      animation: sosMarkerPulse 0.75s infinite;
+    }
     .marker-tag {
-      position: absolute; top: 24px; left: 50%; transform: translateX(-50%);
+      position: absolute; top: 26px; left: 50%; transform: translateX(-50%);
       background: rgba(15,23,42,0.92); color: #fff; padding: 2px 7px;
       border-radius: 5px; font-size: 11px; font-weight: 700; white-space: nowrap;
       pointer-events: none; text-align: center;
+    }
+    .marker-tag.sos-marker-tag {
+      background: #dc2626;
+      border: 1px solid #ffffff;
+      box-shadow: 0 0 10px rgba(220, 38, 38, 0.85);
     }
     .marker-sub { display: block; font-size: 10px; font-weight: 500; color: #cbd5e1; }
   </style>
@@ -368,9 +491,22 @@
       <span>Unités : <strong id="cnt-all">0</strong></span>
       <span>Effectif : <strong id="cnt-crew">0</strong></span>
       <span>Intervention : <strong id="cnt-int">0</strong></span>
+      <button type="button" class="sound-btn" id="btn-sound">Son : Activer</button>
       <span id="status-txt">Chargement...</span>
     </div>
   </header>
+
+  <div class="sos-banner" id="sos-banner">
+    <div class="sos-banner-info">
+      <div class="sos-banner-title" id="sos-banner-title">ALERTE SOS</div>
+      <div class="sos-banner-addr" id="sos-banner-addr">Adresse en cours...</div>
+    </div>
+    <div class="sos-banner-actions">
+      <button type="button" class="sos-btn-action" id="btn-sos-zoom">Localiser</button>
+      <button type="button" class="sos-btn-action" id="btn-sos-mute">Couper sirène</button>
+      <button type="button" class="sos-btn-action" id="btn-sos-ack">Acquitter SOS</button>
+    </div>
+  </div>
 
   <div class="main-layout">
     <div class="col-left">
@@ -416,6 +552,7 @@
       <div class="panel" id="p-mci">
         <div class="mci-filters" id="mci-filters">
           <button class="mci-fbtn active" data-mf="ALL">Tout</button>
+          <button class="mci-fbtn" data-mf="SOS">SOS</button>
           <button class="mci-fbtn" data-mf="STATUS">Statuts</button>
           <button class="mci-fbtn" data-mf="DISPATCH">Dispatch</button>
         </div>
@@ -582,6 +719,10 @@
       const missionsBox = document.getElementById("missions-box");
       const mciBox = document.getElementById("mci-box");
       const mUnitSel = document.getElementById("m-unit");
+      const sosBanner = document.getElementById("sos-banner");
+      const sosBannerTitle = document.getElementById("sos-banner-title");
+      const sosBannerAddr = document.getElementById("sos-banner-addr");
+      const btnSound = document.getElementById("btn-sound");
 
       const markers = new Map();
       const lastKnownStatus = new Map();
@@ -596,6 +737,95 @@
       let trailLine = null;
       let unsubTrail = null;
       let fittedOnce = false;
+
+      // Gestion alarme sonore SOS (Web Audio API)
+      let audioCtx = null;
+      let sirenTimer = null;
+      let sirenMutedForCurrentAlert = false;
+      let activeSosUnits = [];
+
+      function unlockAudio() {
+        const AudioContextCls = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextCls) return;
+        if (!audioCtx) {
+          audioCtx = new AudioContextCls();
+        }
+        if (audioCtx.state === "suspended") {
+          audioCtx.resume().catch(() => {});
+        }
+        btnSound.textContent = "Son : ON";
+        btnSound.classList.add("on");
+      }
+
+      function playAlarmBeep() {
+        if (!audioCtx || audioCtx.state !== "running") return;
+        const now = audioCtx.currentTime;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = "sawtooth";
+        osc.frequency.setValueAtTime(880, now);
+        osc.frequency.setValueAtTime(660, now + 0.18);
+        gain.gain.setValueAtTime(0.18, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.36);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(now);
+        osc.stop(now + 0.38);
+      }
+
+      function startSiren() {
+        if (sirenTimer || sirenMutedForCurrentAlert) return;
+        unlockAudio();
+        playAlarmBeep();
+        sirenTimer = setInterval(playAlarmBeep, 900);
+      }
+
+      function stopSiren() {
+        if (sirenTimer) {
+          clearInterval(sirenTimer);
+          sirenTimer = null;
+        }
+      }
+
+      document.addEventListener("click", unlockAudio, { once: true });
+      btnSound.addEventListener("click", () => {
+        unlockAudio();
+        playAlarmBeep();
+      });
+
+      document.getElementById("btn-sos-mute").addEventListener("click", () => {
+        sirenMutedForCurrentAlert = true;
+        stopSiren();
+      });
+
+      document.getElementById("btn-sos-zoom").addEventListener("click", () => {
+        const target = activeSosUnits[0];
+        if (target) {
+          pickUnit(target.id, true);
+        }
+      });
+
+      document.getElementById("btn-sos-ack").addEventListener("click", async () => {
+        const targets = [...activeSosUnits];
+        sirenMutedForCurrentAlert = true;
+        stopSiren();
+        for (const u of targets) {
+          try {
+            await updateDoc(doc(db, "live_positions", u.docId), {
+              sosActive: false,
+              sosAcknowledgedAt: serverTimestamp()
+            });
+            await addDoc(collection(db, "mci_logs"), {
+              unitId: u.id,
+              type: "SOS_END",
+              message: `ACQUITTEMENT SOS PAR CSU · ${u.id}${u.sosAddress ? ` (${u.sosAddress})` : ""}`,
+              createdAt: serverTimestamp()
+            });
+          } catch (err) {
+            console.warn("Acquittement SOS:", err);
+          }
+        }
+      });
 
       function normStatus(c) {
         const u = String(c || "PATROUILLE").toUpperCase();
@@ -626,21 +856,23 @@
         return null;
       }
 
-      function makeIcon(id, code, label, crewCount) {
+      function makeIcon(id, code, label, crewCount, sosActive) {
         const st = normStatus(code);
         const wrap = document.createElement("div");
         wrap.className = "marker-wrap";
 
         const dot = document.createElement("div");
-        dot.className = `marker-dot st-${st}`;
+        dot.className = sosActive ? "marker-dot sos-marker-dot" : `marker-dot st-${st}`;
 
         const tag = document.createElement("div");
-        tag.className = "marker-tag";
-        tag.textContent = `${String(id ?? "")} · ${formatCrew(crewCount)}`;
+        tag.className = sosActive ? "marker-tag sos-marker-tag" : "marker-tag";
+        tag.textContent = sosActive
+          ? `SOS · ${String(id ?? "")} (${formatCrew(crewCount)})`
+          : `${String(id ?? "")} · ${formatCrew(crewCount)}`;
 
         const sub = document.createElement("span");
         sub.className = "marker-sub";
-        sub.textContent = String(label ?? "");
+        sub.textContent = sosActive ? "ALERTE URGENCE" : String(label ?? "");
 
         tag.appendChild(sub);
         wrap.appendChild(dot);
@@ -649,21 +881,30 @@
         return L.divIcon({
           className: "",
           html: wrap.outerHTML,
-          iconSize: [20, 20],
-          iconAnchor: [10, 10],
-          popupAnchor: [0, -12]
+          iconSize: [22, 22],
+          iconAnchor: [11, 11],
+          popupAnchor: [0, -14]
         });
       }
 
-      function makePopupNode(id, label, crewCount, speed, equipment) {
+      function makePopupNode(id, label, crewCount, speed, equipment, sosActive, sosAddress) {
         const container = document.createElement("div");
         container.style.color = "#0f172a";
         container.style.fontSize = "12px";
 
         const title = document.createElement("strong");
-        title.textContent = String(id ?? "");
+        title.textContent = sosActive ? `ALERTE SOS · ${String(id ?? "")}` : String(id ?? "");
+        if (sosActive) title.style.color = "#dc2626";
         container.appendChild(title);
         container.appendChild(document.createElement("br"));
+
+        if (sosActive && sosAddress) {
+          const lSos = document.createElement("strong");
+          lSos.style.color = "#b91c1c";
+          lSos.textContent = `Adresse : ${sosAddress}`;
+          container.appendChild(lSos);
+          container.appendChild(document.createElement("br"));
+        }
 
         const l0 = document.createElement("span");
         l0.textContent = `Effectif : ${formatCrew(crewCount)}`;
@@ -735,7 +976,8 @@
       }
 
       function renderUnits() {
-        const list = filterCode === "ALL" ? units : units.filter((u) => u.status === filterCode);
+        const sorted = [...units].sort((a, b) => (b.sosActive ? 1 : 0) - (a.sosActive ? 1 : 0));
+        const list = filterCode === "ALL" ? sorted : sorted.filter((u) => u.status === filterCode || u.sosActive);
         const totalCrew = units.reduce((acc, u) => acc + Math.max(1, Number(u.crewCount || 1)), 0);
         document.getElementById("cnt-all").textContent = String(units.length);
         document.getElementById("cnt-crew").textContent = String(totalCrew);
@@ -748,10 +990,10 @@
         defOpt.textContent = "1. Unité (optionnel)";
         mUnitSel.appendChild(defOpt);
 
-        units.forEach((u) => {
+        sorted.forEach((u) => {
           const o = document.createElement("option");
           o.value = u.id;
-          o.textContent = `${u.id} (${formatCrew(u.crewCount)})`;
+          o.textContent = `${u.sosActive ? "[SOS] " : ""}${u.id} (${formatCrew(u.crewCount)})`;
           mUnitSel.appendChild(o);
         });
         if (prev) mUnitSel.value = prev;
@@ -768,7 +1010,7 @@
 
         list.forEach((u) => {
           const div = document.createElement("div");
-          div.className = `card hi-${u.status}${u.id === selectedId ? " selected" : ""}`;
+          div.className = `card hi-${u.status}${u.sosActive ? " sos-alert-card" : ""}${u.id === selectedId ? " selected" : ""}`;
 
           const head = document.createElement("div");
           head.className = "card-head";
@@ -787,12 +1029,19 @@
           titleWrap.appendChild(crewPill);
 
           const badge = document.createElement("span");
-          badge.className = `badge st-${u.status}`;
-          badge.textContent = u.label;
+          badge.className = u.sosActive ? "badge st-SOS" : `badge st-${u.status}`;
+          badge.textContent = u.sosActive ? "SOS EN COURS" : u.label;
 
           head.appendChild(titleWrap);
           head.appendChild(badge);
           div.appendChild(head);
+
+          if (u.sosActive) {
+            const sosBox = document.createElement("div");
+            sosBox.className = "sos-card-box";
+            sosBox.textContent = `Alerte : ${u.sosAddress || "Localisation GPS en cours"}`;
+            div.appendChild(sosBox);
+          }
 
           const meta = document.createElement("div");
           meta.className = "meta";
@@ -828,8 +1077,10 @@
         mciBox.textContent = "";
         const filtered = mciEntries.filter((x) => {
           const msg = String(x.message || "");
+          const isSos = x.type === "SOS" || x.type === "SOS_END" || msg.startsWith("ALERTE SOS") || msg.startsWith("FIN ALERTE SOS") || msg.startsWith("ACQUITTEMENT SOS");
           const isStatus = x.type === "STATUS_CHANGE" || msg.startsWith("Statut :");
           const isDispatch = x.type === "DISPATCH" || msg.startsWith("Dispatch :");
+          if (mciFilter === "SOS") return isSos;
           if (mciFilter === "STATUS") return isStatus;
           if (mciFilter === "DISPATCH") return isDispatch;
           return true;
@@ -847,15 +1098,19 @@
         filtered.forEach((x) => {
           const dt = x.createdAt?.toDate ? x.createdAt.toDate().toLocaleTimeString("fr-FR") : "--:--:--";
           const msg = String(x.message || "");
+          const isSos = x.type === "SOS" || msg.startsWith("ALERTE SOS");
+          const isSosEnd = x.type === "SOS_END" || msg.startsWith("FIN ALERTE SOS") || msg.startsWith("ACQUITTEMENT SOS");
           const isStatus = x.type === "STATUS_CHANGE" || msg.startsWith("Statut :");
           const isAck = x.type === "ACK" || msg.startsWith("Validé par ");
           const isArchive = x.type === "ARCHIVE" || msg.startsWith("Archivage intervention :");
           const stCode = isStatus ? inferStatusFromEntry(x) : null;
 
           const el = document.createElement("div");
-          el.className = stCode
-            ? `item mci-st-${stCode}`
-            : (isAck ? "item ack-log" : (isArchive ? "item archive-log" : "item"));
+          el.className = isSos
+            ? "item sos-log"
+            : (stCode
+              ? `item mci-st-${stCode}`
+              : ((isAck || isSosEnd) ? "item ack-log" : (isArchive ? "item archive-log" : "item")));
 
           const head = document.createElement("div");
           head.className = "mci-head";
@@ -865,7 +1120,17 @@
           timeDiv.textContent = x.unitId ? `${dt} · ${x.unitId}` : dt;
           head.appendChild(timeDiv);
 
-          if (stCode) {
+          if (isSos) {
+            const sosBadge = document.createElement("span");
+            sosBadge.className = "mci-badge st-SOS";
+            sosBadge.textContent = "SOS";
+            head.appendChild(sosBadge);
+          } else if (isSosEnd) {
+            const endBadge = document.createElement("span");
+            endBadge.className = "mci-badge st-DISPONIBLE";
+            endBadge.textContent = "Fin SOS";
+            head.appendChild(endBadge);
+          } else if (stCode) {
             const stBadge = document.createElement("span");
             stBadge.className = `mci-badge st-${stCode}`;
             stBadge.textContent = STATUS_LABELS[stCode];
@@ -983,6 +1248,8 @@
           const crewCount = Math.max(1, Number(d.crewCount || 1));
           const st = normStatus(d.operationalStatus);
           const label = String(d.operationalStatusLabel || STATUS_LABELS[st]);
+          const sosActive = Boolean(d.sosActive);
+          const sosAddress = String(d.sosAddress || "");
           const prevState = lastKnownStatus.get(id);
 
           if (st === "FIN_DE_SERVICE") {
@@ -1014,20 +1281,35 @@
           lastKnownStatus.set(id, { status: st, label });
 
           seen.add(id);
-          next.push({ id, crewCount, status: st, label, equipment, lat, lng, speed, tracking });
+          next.push({
+            docId: docSnap.id,
+            id,
+            crewCount,
+            status: st,
+            label,
+            equipment,
+            lat,
+            lng,
+            speed,
+            tracking,
+            sosActive,
+            sosAddress
+          });
 
           if (lat !== null && lng !== null && map && typeof L !== "undefined") {
             bounds.push([lat, lng]);
-            const popNode = makePopupNode(id, label, crewCount, speed, equipment);
-            const icon = makeIcon(id, st, label, crewCount);
+            const popNode = makePopupNode(id, label, crewCount, speed, equipment, sosActive, sosAddress);
+            const icon = makeIcon(id, st, label, crewCount, sosActive);
             if (markers.has(id)) {
               const m = markers.get(id);
               m.setLatLng([lat, lng]);
               m.setIcon(icon);
               m.setPopupContent(popNode);
+              if (sosActive) m.openPopup();
             } else {
               const m = L.marker([lat, lng], { icon }).addTo(map).bindPopup(popNode).on("click", () => pickUnit(id, false));
               markers.set(id, m);
+              if (sosActive) m.openPopup();
             }
           } else if (markers.has(id) && map) {
             map.removeLayer(markers.get(id));
@@ -1044,6 +1326,34 @@
         }
 
         units = next;
+        const previousSosIds = activeSosUnits.map((u) => u.id).join(",");
+        activeSosUnits = units.filter((u) => u.sosActive);
+        const currentSosIds = activeSosUnits.map((u) => u.id).join(",");
+
+        if (activeSosUnits.length > 0) {
+          if (currentSosIds !== previousSosIds) {
+            sirenMutedForCurrentAlert = false;
+            const firstSos = activeSosUnits[0];
+            if (map && typeof firstSos.lat === "number" && typeof firstSos.lng === "number") {
+              map.setView([firstSos.lat, firstSos.lng], 16);
+            }
+          }
+          const primary = activeSosUnits[0];
+          const extra = activeSosUnits.length > 1 ? ` (+${activeSosUnits.length - 1} autre)` : "";
+          sosBannerTitle.textContent = `ALERTE SOS · ${primary.id} (${formatCrew(primary.crewCount)})${extra}`;
+          sosBannerAddr.textContent = primary.sosAddress
+            ? `Adresse signalée : ${primary.sosAddress}`
+            : (typeof primary.lat === "number" && typeof primary.lng === "number"
+              ? `Coordonnées GPS : ${primary.lat.toFixed(5)}, ${primary.lng.toFixed(5)}`
+              : "Acquisition de la position GPS...");
+          sosBanner.classList.add("active");
+          startSiren();
+        } else {
+          sosBanner.classList.remove("active");
+          sirenMutedForCurrentAlert = false;
+          stopSiren();
+        }
+
         renderUnits();
         if (!fittedOnce && bounds.length > 0 && map) {
           fittedOnce = true;
