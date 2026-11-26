@@ -502,6 +502,10 @@
       box-shadow: 0 0 10px rgba(220, 38, 38, 0.85);
     }
     .marker-sub { display: block; font-size: 10px; font-weight: 500; color: #cbd5e1; }
+    .marker-wrap.zoom-far { width: 12px; height: 12px; }
+    .marker-wrap.zoom-far .marker-dot { width: 12px; height: 12px; border-width: 2px; }
+    .marker-wrap.zoom-far .marker-tag { display: none; }
+    .marker-wrap.zoom-mid .marker-tag { top: 22px; font-size: 9px; padding: 1px 5px; }
   </style>
 </head>
 <body>
@@ -882,10 +886,18 @@
         return null;
       }
 
+      function getZoomTier() {
+        const z = map && typeof map.getZoom === "function" ? map.getZoom() : 14;
+        if (z <= 12) return "far";
+        if (z <= 14) return "mid";
+        return "near";
+      }
+
       function makeIcon(id, code, label, crewCount, sosActive) {
         const st = normStatus(code);
+        const tier = getZoomTier();
         const wrap = document.createElement("div");
-        wrap.className = "marker-wrap";
+        wrap.className = tier === "near" ? "marker-wrap" : `marker-wrap zoom-${tier}`;
 
         const dot = document.createElement("div");
         dot.className = sosActive ? "marker-dot sos-marker-dot" : `marker-dot st-${st}`;
@@ -904,13 +916,28 @@
         wrap.appendChild(dot);
         wrap.appendChild(tag);
 
+        const pxSize = tier === "far" ? 12 : 22;
         return L.divIcon({
           className: "",
           html: wrap.outerHTML,
-          iconSize: [22, 22],
-          iconAnchor: [11, 11],
-          popupAnchor: [0, -14]
+          iconSize: [pxSize, pxSize],
+          iconAnchor: [pxSize / 2, pxSize / 2],
+          popupAnchor: [0, -(pxSize / 2 + 4)]
         });
+      }
+
+      function refreshMarkersZoom() {
+        if (!map || typeof L === "undefined") return;
+        units.forEach((u) => {
+          const m = markers.get(u.id);
+          if (m) {
+            m.setIcon(makeIcon(u.id, u.status, u.label, u.crewCount, u.sosActive));
+          }
+        });
+      }
+
+      if (map && typeof map.on === "function") {
+        map.on("zoomend", refreshMarkersZoom);
       }
 
       function makePopupNode(id, label, crewCount, speed, equipment, sosActive, sosAddress) {
